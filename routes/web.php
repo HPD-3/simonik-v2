@@ -219,7 +219,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Rekap Penilaian — lihat (semua cakupan) + input nilai (guru/pembimbing).
-    Route::middleware('role:admin|kaprog|wakasek|guru|pembimbing|siswa|orangtua')->group(function () {
+    Route::middleware('role:admin|kaprog|wakasek|guru|pembimbing|orangtua')->group(function () {
         // Penelusuran berjenjang: Jurusan -> Kelas -> Murid -> rekap nilai.
         Route::get('penilaian', [AssessmentController::class, 'index'])->name('assessments.index');
         Route::get('penilaian/jurusan/{departemen}', [AssessmentController::class, 'classes'])->name('assessments.classes');
