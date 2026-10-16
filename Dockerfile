@@ -94,6 +94,7 @@ RUN sed -i 's/\r$//' /etc/entrypoint.d/99-seed.sh && chmod +x /etc/entrypoint.d/
 # Let serversideup auto-run Laravel optimizations + migrations on boot.
 ENV PORT=80 \
     NGINX_HTTP_PORT=80 \
+    LOG_CHANNEL=stderr \
     PHP_OPCACHE_ENABLE=1 \
     AUTORUN_ENABLED=true \
     AUTORUN_LARAVEL_STORAGE_LINK=true \
