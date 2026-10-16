@@ -69,12 +69,19 @@ USER root
 # Extra PHP extensions used by the app (MySQL, GD for image handling).
 RUN install-php-extensions pdo_mysql gd bcmath
 
+# Add user directive to nginx.conf.template so workers run as www-data when master runs as root
+RUN sed -i '1s/^/user www-data;\n/' /etc/nginx/nginx.conf.template
+
 WORKDIR /var/www/html
 
 # Application source + built dependencies.
 COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build ./public/build
+
+# Ensure storage and bootstrap/cache permissions
+RUN chmod -R 775 storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 # Copy wrapper entrypoint to bind dynamic $PORT
 COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
@@ -90,14 +97,18 @@ ENV PORT=80 \
     PHP_OPCACHE_ENABLE=1 \
     AUTORUN_ENABLED=true \
     AUTORUN_LARAVEL_STORAGE_LINK=true \
-    AUTORUN_LARAVEL_MIGRATION=true \
-    AUTORUN_LARAVEL_SEED=true \
+    AUTORUN_LARAVEL_MIGRATION=false \
+    AUTORUN_LARAVEL_SEED=false \
+    RUN_MIGRATIONS=true \
+    RUN_SEEDERS=true \
     AUTORUN_LARAVEL_CONFIG_CACHE=true \
     AUTORUN_LARAVEL_ROUTE_CACHE=true \
     AUTORUN_LARAVEL_VIEW_CACHE=true \
     AUTORUN_LARAVEL_EVENT_CACHE=true
 
-USER www-data
+# Master process must run as root to bind privileged ports (< 1024, e.g. PORT=80).
+# Workers drop privileges to www-data.
+USER root
 
 EXPOSE 80 8080 3000
 
