@@ -76,12 +76,22 @@ COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build ./public/build
 
+# Copy wrapper entrypoint to bind dynamic $PORT
+COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+# Copy startup hook to run migrations and all seeders
+COPY --chmod=755 docker/entrypoint-seed.sh /etc/entrypoint.d/99-seed.sh
+RUN sed -i 's/\r$//' /etc/entrypoint.d/99-seed.sh && chmod +x /etc/entrypoint.d/99-seed.sh
+
 # Let serversideup auto-run Laravel optimizations + migrations on boot.
-# (These can be overridden per-service in the Dokploy environment tab.)
-ENV PHP_OPCACHE_ENABLE=1 \
+ENV PORT=80 \
+    NGINX_HTTP_PORT=80 \
+    PHP_OPCACHE_ENABLE=1 \
     AUTORUN_ENABLED=true \
     AUTORUN_LARAVEL_STORAGE_LINK=true \
     AUTORUN_LARAVEL_MIGRATION=true \
+    AUTORUN_LARAVEL_SEED=true \
     AUTORUN_LARAVEL_CONFIG_CACHE=true \
     AUTORUN_LARAVEL_ROUTE_CACHE=true \
     AUTORUN_LARAVEL_VIEW_CACHE=true \
@@ -89,4 +99,7 @@ ENV PHP_OPCACHE_ENABLE=1 \
 
 USER www-data
 
-EXPOSE 8080
+EXPOSE 80 8080 3000
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/init"]
