@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, Clock, MapPin } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { index } from '@/actions/App/Http/Controllers/AttendanceController';
 import { ApprovalStatus } from '@/components/approval-status';
 import type { EmotionKey } from '@/components/photo-capture';
@@ -16,6 +17,8 @@ type AttendanceShowProps = {
         status: string | null;
         arrivalTime: string | null;
         departureTime: string | null;
+        isLate?: boolean;
+        lateMinutes?: number | null;
         absenceReason: string | null;
         image: string | null;
         emotion: EmotionKey | null;
@@ -32,6 +35,11 @@ type AttendanceShowProps = {
             note: string | null;
         } | null;
     };
+    student?: {
+        name: string;
+        class: string | null;
+        industry: string | null;
+    } | null;
 };
 
 function EmotionBadge({ emotion }: { emotion: EmotionKey }) {
@@ -48,21 +56,46 @@ function EmotionBadge({ emotion }: { emotion: EmotionKey }) {
 function DetailItem({
     label,
     value,
+    children,
 }: {
     label: string;
-    value: string | null | undefined;
+    value?: string | null | undefined;
+    children?: ReactNode;
 }) {
     return (
         <div className="space-y-1.5">
             <p className="text-xs font-semibold tracking-[0.12em] text-muted uppercase">
                 {label}
             </p>
-            <p className="text-sm text-ink">{value || '—'}</p>
+            {children ? (
+                <div className="text-sm text-ink">{children}</div>
+            ) : (
+                <p className="text-sm text-ink">{value || '—'}</p>
+            )}
         </div>
     );
 }
 
-export default function AttendanceShow({ attendance }: AttendanceShowProps) {
+function getAttendanceStatus(attendance: AttendanceShowProps['attendance']): string {
+    const raw = (attendance.status ?? '').toLowerCase();
+    if (raw === 'hadir' || raw === 'masuk') {
+        if (
+            attendance.isLate ||
+            (attendance.lateMinutes !== null &&
+                attendance.lateMinutes !== undefined &&
+                attendance.lateMinutes > 0)
+        ) {
+            return 'terlambat';
+        }
+        if (!attendance.departureTime) {
+            return 'belum-lengkap';
+        }
+    }
+    return attendance.status ?? '';
+}
+
+export default function AttendanceShow({ attendance, student }: AttendanceShowProps) {
+    const status = getAttendanceStatus(attendance);
     const mapsUrl =
         attendance.latitude && attendance.longitude
             ? `https://www.google.com/maps?q=${attendance.latitude},${attendance.longitude}`
@@ -91,13 +124,35 @@ export default function AttendanceShow({ attendance }: AttendanceShowProps) {
                         <span
                             className={cn(
                                 'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
-                                attendanceStyle(attendance.status),
+                                attendanceStyle(status),
                             )}
                         >
-                            {attendanceLabel(attendance.status)}
+                            {attendanceLabel(status)}
                         </span>
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2">
+                        <DetailItem
+                            label="Nama"
+                            value={student?.name}
+                        />
+                        <DetailItem
+                            label="Kelas"
+                            value={student?.class}
+                        />
+                        <DetailItem
+                            label="Industri"
+                            value={student?.industry}
+                        />
+                        <DetailItem label="Status">
+                            <span
+                                className={cn(
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    attendanceStyle(status),
+                                )}
+                            >
+                                {attendanceLabel(status)}
+                            </span>
+                        </DetailItem>
                         <DetailItem
                             label="Jam Masuk"
                             value={attendance.arrivalTime}
@@ -106,6 +161,20 @@ export default function AttendanceShow({ attendance }: AttendanceShowProps) {
                             label="Jam Pulang"
                             value={attendance.departureTime}
                         />
+                        <DetailItem label="Keterlambatan">
+                            {attendance.lateMinutes !== null &&
+                            attendance.lateMinutes !== undefined ? (
+                                attendance.lateMinutes > 0 ? (
+                                    <span className="inline-flex rounded bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-600">
+                                        {attendance.lateMinutes} menit terlambat
+                                    </span>
+                                ) : (
+                                    <span className="text-muted">Tepat waktu</span>
+                                )
+                            ) : (
+                                '—'
+                            )}
+                        </DetailItem>
                         {attendance.absenceReason && (
                             <DetailItem
                                 label="Alasan"

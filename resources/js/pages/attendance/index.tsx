@@ -75,6 +75,19 @@ function EmotionBadge({ emotion }: { emotion: EmotionKey }) {
     );
 }
 
+function getAttendanceStatus(row: AttendanceRecord): string {
+    const raw = (row.status ?? '').toLowerCase();
+    if (raw === 'hadir' || raw === 'masuk') {
+        if (row.isLate || (row.lateMinutes !== null && row.lateMinutes > 0)) {
+            return 'terlambat';
+        }
+        if (!row.departureTime) {
+            return 'belum-lengkap';
+        }
+    }
+    return row.status ?? '';
+}
+
 export default function AttendanceIndex({
     today,
     history,
@@ -118,10 +131,13 @@ export default function AttendanceIndex({
                                             Status
                                         </th>
                                         <th className="pb-3 font-semibold">
-                                            Masuk
+                                            Jam Masuk
                                         </th>
                                         <th className="pb-3 font-semibold">
-                                            Pulang
+                                            Jam Pulang
+                                        </th>
+                                        <th className="pb-3 font-semibold">
+                                            Keterlambatan
                                         </th>
                                         <th className="pb-3 text-right font-semibold">
                                             Detail
@@ -129,62 +145,67 @@ export default function AttendanceIndex({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-line">
-                                    {history.data.map((row) => (
-                                        <tr key={row.id}>
-                                            <td className="py-3 font-medium text-ink">
-                                                {row.dateLabel}
-                                            </td>
-                                            <td className="py-3">
-                                                <span
-                                                    className={cn(
-                                                        'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
-                                                        attendanceStyle(
-                                                            row.status,
-                                                        ),
-                                                    )}
-                                                >
-                                                    {attendanceLabel(
-                                                        row.status,
-                                                    )}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 text-ink/80">
-                                                <div className="flex flex-wrap items-center gap-1.5">
-                                                    <span>
-                                                        {row.arrivalTime ?? '—'}
+                                    {history.data.map((row) => {
+                                        const status = getAttendanceStatus(row);
+
+                                        return (
+                                            <tr key={row.id}>
+                                                <td className="py-3 font-medium text-ink">
+                                                    {row.dateLabel}
+                                                </td>
+                                                <td className="py-3">
+                                                    <span
+                                                        className={cn(
+                                                            'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                                            attendanceStyle(status),
+                                                        )}
+                                                    >
+                                                        {attendanceLabel(status)}
                                                     </span>
-                                                    {row.lateMinutes !==
-                                                        null && (
-                                                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
-                                                            {row.lateMinutes > 0
-                                                                ? `${row.lateMinutes} menit terlambat`
-                                                                : 'Tepat waktu'}
+                                                </td>
+                                                <td className="py-3 text-ink/80">
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <span>
+                                                            {row.arrivalTime ?? '—'}
                                                         </span>
+                                                        {row.isSuspect && (
+                                                            <span
+                                                                className="inline-flex rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950/30 dark:text-rose-400"
+                                                                title="Koordinat atau akurasi GPS mencurigakan"
+                                                            >
+                                                                Mencurigakan
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-ink/80">
+                                                    {row.departureTime ?? '—'}
+                                                </td>
+                                                <td className="py-3 text-ink/80">
+                                                    {row.lateMinutes !== null ? (
+                                                        row.lateMinutes > 0 ? (
+                                                            <span className="inline-flex rounded bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-600">
+                                                                {row.lateMinutes} menit terlambat
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted">Tepat waktu</span>
+                                                        )
+                                                    ) : (
+                                                        '—'
                                                     )}
-                                                    {row.isSuspect && (
-                                                        <span
-                                                            className="inline-flex rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950/30 dark:text-rose-400"
-                                                            title="Koordinat atau akurasi GPS mencurigakan"
-                                                        >
-                                                            Mencurigakan
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="py-3 text-ink/80">
-                                                {row.departureTime ?? '—'}
-                                            </td>
-                                            <td className="py-3 text-right">
-                                                <Link
-                                                    href={showUrl.url(row.id)}
-                                                    className="inline-grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-primary"
-                                                    aria-label="Lihat detail"
-                                                >
-                                                    <Eye className="size-4" />
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <Link
+                                                        href={showUrl.url(row.id)}
+                                                        className="inline-grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-primary"
+                                                        aria-label="Lihat detail"
+                                                    >
+                                                        <Eye className="size-4" />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

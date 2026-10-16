@@ -292,7 +292,7 @@ export const navSections: NavSection[] = [
                 label: 'Rekap Penilaian',
                 icon: ClipboardCheck,
                 href: assessmentsIndex.url(),
-                roles: [...STAFF, 'siswa', 'orangtua'],
+                roles: [...STAFF,  'orangtua'],
             },
             {
                 label: 'Penilaian PKL',
