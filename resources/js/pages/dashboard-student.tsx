@@ -1,18 +1,18 @@
 import { Link } from '@inertiajs/react';
 import {
     Award,
+    BookOpen,
     CalendarCheck,
     Camera,
-    ClipboardCheck,
     Clock,
     NotebookPen,
     Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { index as activitiesIndex } from '@/actions/App/Http/Controllers/ActivityController';
-import { index as assessmentsIndex } from '@/actions/App/Http/Controllers/AssessmentController';
 import { index as attendanceIndex } from '@/actions/App/Http/Controllers/AttendanceController';
 import { index as certificatesIndex } from '@/actions/App/Http/Controllers/CertificateController';
+import { index as guidesIndex } from '@/actions/App/Http/Controllers/GuideController';
 import { AnnouncementBoard } from '@/components/announcements/announcement-board';
 import type { BadgeData } from '@/components/badges/badge-atom';
 import { BadgeShowcase } from '@/components/badges/badge-showcase';
@@ -54,9 +54,9 @@ const actions: Array<{ label: string; icon: LucideIcon; href: string }> = [
     { label: 'Absen', icon: Camera, href: attendanceIndex.url() },
     { label: 'Jurnal', icon: NotebookPen, href: activitiesIndex.url() },
     {
-        label: 'Rekap Nilai',
-        icon: ClipboardCheck,
-        href: assessmentsIndex.url(),
+        label: 'Panduan PKL',
+        icon: BookOpen,
+        href: guidesIndex.url(),
     },
     { label: 'Sertifikat', icon: Award, href: certificatesIndex.url() },
 ];
