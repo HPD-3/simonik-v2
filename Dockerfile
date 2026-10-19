@@ -48,8 +48,11 @@ COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
 # Wayfinder boots the Laravel app during `vite build`, which needs an APP_KEY.
-# Use a throwaway .env for the build only (real env comes from Dokploy at runtime).
-RUN cp .env.example .env && php artisan key:generate --force
+# Remove stale bootstrap cache from host (dev-only providers like laravel/boost) before booting.
+RUN rm -f bootstrap/cache/*.php \
+    && cp .env.example .env \
+    && php artisan package:discover --ansi \
+    && php artisan key:generate --force
 
 # Use `npm install` (not `npm ci`): the committed lockfile is generated on
 # Windows and omits Linux-only transitive deps (e.g. @emnapi/core from the
@@ -80,7 +83,9 @@ COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build ./public/build
 
 # Ensure storage and bootstrap/cache permissions
-RUN chmod -R 775 storage bootstrap/cache \
+RUN rm -f bootstrap/cache/*.php \
+    && php artisan package:discover --ansi \
+    && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 # Copy wrapper entrypoint to bind dynamic $PORT
