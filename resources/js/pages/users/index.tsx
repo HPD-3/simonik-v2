@@ -1,8 +1,10 @@
 import { router } from '@inertiajs/react';
-import { Filter, Search, UserCheck, Users, X } from 'lucide-react';
-import { useState } from 'react';
+import { Shield, Search, UserCheck, Users, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { index } from '@/actions/App/Http/Controllers/UserController';
 import { Pagination } from '@/components/ui/pagination';
+import { Select } from '@/components/ui/select';
+import type { SelectOption } from '@/components/ui/select';
 import { AppLayout } from '@/layouts/app-layout';
 import type { Paginated } from '@/types';
 
@@ -46,6 +48,22 @@ const ROLE_BADGE_COLORS: Record<string, string> = {
     orangtua: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
+const ROLE_DOT_COLORS: Record<string, string> = {
+    admin: 'bg-purple-600',
+    wakasek: 'bg-blue-600',
+    kaprog: 'bg-indigo-600',
+    guru: 'bg-emerald-600',
+    pembimbing: 'bg-amber-500',
+    siswa: 'bg-sky-500',
+    orangtua: 'bg-rose-500',
+};
+
+function RoleDot({ role }: { role: string }) {
+    const color = ROLE_DOT_COLORS[role] ?? 'bg-slate-400';
+
+    return <span className={`inline-block size-2 rounded-full ${color}`} />;
+}
+
 export default function UsersIndex({
     users,
     filters,
@@ -53,6 +71,18 @@ export default function UsersIndex({
 }: UsersIndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [role, setRole] = useState(filters.role ?? '');
+
+    const roleOptions: SelectOption[] = useMemo(
+        () => [
+            { value: '', label: 'Semua role' },
+            ...availableRoles.map((r) => ({
+                value: r,
+                label: ROLE_LABELS[r] ?? r,
+                hint: <RoleDot role={r} />,
+            })),
+        ],
+        [availableRoles],
+    );
 
     function applyFilters(nextSearch: string, nextRole: string) {
         router.get(
@@ -106,10 +136,10 @@ export default function UsersIndex({
 
                 {/* Filters */}
                 <div className="mt-5 space-y-3">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <form
                             onSubmit={handleSearchSubmit}
-                            className="flex items-center gap-2 rounded-xl border border-line bg-canvas/40 px-4 py-2.5 text-sm text-muted transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 sm:col-span-2"
+                            className="flex flex-1 items-center gap-2 rounded-xl border border-line bg-canvas/40 px-4 py-2.5 text-sm text-muted transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
                         >
                             <Search className="size-4 shrink-0" />
                             <input
@@ -121,20 +151,15 @@ export default function UsersIndex({
                             />
                         </form>
 
-                        <div className="relative flex items-center rounded-xl border border-line bg-canvas/40 px-3 py-2.5 text-sm">
-                            <Filter className="mr-2 size-4 text-muted shrink-0" />
-                            <select
+                        <div className="w-full sm:w-56">
+                            <Select
+                                ariaLabel="Filter role"
                                 value={role}
-                                onChange={(e) => handleRoleChange(e.target.value)}
-                                className="w-full bg-transparent text-ink focus:outline-none"
-                            >
-                                <option value="">Semua Role</option>
-                                {availableRoles.map((r) => (
-                                    <option key={r} value={r}>
-                                        {ROLE_LABELS[r] ?? r}
-                                    </option>
-                                ))}
-                            </select>
+                                options={roleOptions}
+                                onChange={handleRoleChange}
+                                icon={<Shield className="size-4" />}
+                                placeholder="Semua role"
+                            />
                         </div>
                     </div>
 
