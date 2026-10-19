@@ -168,7 +168,7 @@ export default function AssessmentsStudents({
                                                 prefetch
                                                 className="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-canvas"
                                             >
-                                                Lihat / Nilai
+                                                Lihat Nilai
                                             </Link>
                                         </td>
                                     </tr>

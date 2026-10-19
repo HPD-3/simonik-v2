@@ -121,7 +121,7 @@ class AssessmentTest extends TestCase
             ->assertRedirect("/penilaian/{$student->id}");
     }
 
-    public function test_guru_can_score_non_technical_aspects(): void
+    public function test_guru_cannot_submit_scores(): void
     {
         $s = $this->scenario();
 
@@ -129,39 +129,25 @@ class AssessmentTest extends TestCase
             ->put("/penilaian/{$s['student']->id}", [
                 'scores' => [$s['nonTeknis']->id => 85],
             ])
-            ->assertSessionHas('success');
-
-        $this->assertDatabaseHas('evaluations', [
-            'student_id' => $s['student']->id,
-            'aspek_produktif_id' => $s['nonTeknis']->id,
-            'score' => 85,
-        ]);
-    }
-
-    public function test_guru_cannot_score_technical_aspects(): void
-    {
-        $s = $this->scenario();
+            ->assertForbidden();
 
         $this->actingAs($s['teacher'])
             ->put("/penilaian/{$s['student']->id}", [
                 'scores' => [$s['teknis']->id => 90],
             ])
-            ->assertSessionHas('success');
-
-        // Aspek teknis di luar kewenangan guru -> diabaikan.
-        $this->assertDatabaseMissing('evaluations', [
-            'student_id' => $s['student']->id,
-            'aspek_produktif_id' => $s['teknis']->id,
-        ]);
+            ->assertForbidden();
     }
 
-    public function test_pembimbing_can_score_technical_aspects(): void
+    public function test_pembimbing_can_score_technical_and_non_technical_aspects(): void
     {
         $s = $this->scenario();
 
         $this->actingAs($s['pembimbing'])
             ->put("/penilaian/{$s['student']->id}", [
-                'scores' => [$s['teknis']->id => 72],
+                'scores' => [
+                    $s['teknis']->id => 72,
+                    $s['nonTeknis']->id => 88,
+                ],
             ])
             ->assertSessionHas('success');
 
@@ -170,18 +156,24 @@ class AssessmentTest extends TestCase
             'aspek_produktif_id' => $s['teknis']->id,
             'score' => 72,
         ]);
+
+        $this->assertDatabaseHas('evaluations', [
+            'student_id' => $s['student']->id,
+            'aspek_produktif_id' => $s['nonTeknis']->id,
+            'score' => 88,
+        ]);
     }
 
     public function test_empty_score_clears_existing_value(): void
     {
         $s = $this->scenario();
 
-        $this->actingAs($s['teacher'])
+        $this->actingAs($s['pembimbing'])
             ->put("/penilaian/{$s['student']->id}", [
                 'scores' => [$s['nonTeknis']->id => 85],
             ]);
 
-        $this->actingAs($s['teacher'])
+        $this->actingAs($s['pembimbing'])
             ->put("/penilaian/{$s['student']->id}", [
                 'scores' => [$s['nonTeknis']->id => ''],
             ]);
@@ -196,21 +188,21 @@ class AssessmentTest extends TestCase
     {
         $s = $this->scenario();
 
-        $this->actingAs($s['teacher'])
+        $this->actingAs($s['pembimbing'])
             ->put("/penilaian/{$s['student']->id}", [
                 'scores' => [$s['nonTeknis']->id => 150],
             ])
             ->assertSessionHasErrors("scores.{$s['nonTeknis']->id}");
     }
 
-    public function test_guru_cannot_score_student_outside_scope(): void
+    public function test_pembimbing_cannot_score_student_outside_scope(): void
     {
         $s = $this->scenario();
         $otherStudent = Student::factory()->create([
             'industri_id' => Industry::factory()->create()->id,
         ]);
 
-        $this->actingAs($s['teacher'])
+        $this->actingAs($s['pembimbing'])
             ->put("/penilaian/{$otherStudent->id}", [
                 'scores' => [$s['nonTeknis']->id => 80],
             ])
@@ -237,8 +229,24 @@ class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('assessments/show')
-                ->where('can.nonTeknis', true)
+                ->where('can.nonTeknis', false)
                 ->where('can.teknis', false)
+                ->has('nonTeknis', 1)
+                ->has('teknis', 1)
+            );
+    }
+
+    public function test_show_exposes_capability_flags_for_pembimbing(): void
+    {
+        $s = $this->scenario();
+
+        $this->actingAs($s['pembimbing'])
+            ->get("/penilaian/{$s['student']->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/show')
+                ->where('can.nonTeknis', true)
+                ->where('can.teknis', true)
                 ->has('nonTeknis', 1)
                 ->has('teknis', 1)
             );

@@ -104,7 +104,7 @@ export default function AssessmentShow({
 
                 <ScoreTable
                     title="Aspek Non-Teknis"
-                    subtitle="Dinilai guru pembimbing"
+                    subtitle="Dinilai pembimbing industri"
                     rows={nonTeknis}
                     editable={can.nonTeknis}
                     scores={form.data.scores}

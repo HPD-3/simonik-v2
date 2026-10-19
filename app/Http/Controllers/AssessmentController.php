@@ -187,40 +187,40 @@ class AssessmentController extends Controller
             'nonTeknis' => $rows(AspekProduktif::CATEGORY_NON_TEKNIS),
             'can' => [
                 'teknis' => $user->hasRole('pembimbing'),
-                'nonTeknis' => $user->hasRole('guru'),
+                'nonTeknis' => $user->hasRole('pembimbing'),
             ],
         ]);
     }
 
     /**
-     * Simpan nilai siswa. Guru mengisi aspek non-teknis, pembimbing mengisi teknis
-     * (route di-gate `role:guru|pembimbing`).
+     * Simpan nilai siswa. Hanya pembimbing industri yang dapat mengisi nilai teknis & non-teknis
+     * (route di-gate `role:pembimbing`).
      */
     public function update(AssessmentRequest $request, Student $student): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
+        abort_unless($user->hasRole('pembimbing'), 403);
         abort_unless($this->scopedStudents($user)->whereKey($student->id)->exists(), 403);
 
-        $category = $user->hasRole('pembimbing')
-            ? AspekProduktif::CATEGORY_TEKNIS
-            : AspekProduktif::CATEGORY_NON_TEKNIS;
-
-        $allowedIds = AspekProduktif::query()
-            ->where('category', $category)
-            ->pluck('id');
+        $allowedAspects = AspekProduktif::query()
+            ->get(['id', 'category'])
+            ->keyBy('id');
 
         /** @var array<int|string, int|null> $scores */
         $scores = $request->validated()['scores'] ?? [];
         $labels = $request->validated()['labels'] ?? [];
 
         foreach ($scores as $aspekId => $score) {
-            if (! $allowedIds->contains((int) $aspekId)) {
-                continue; // abaikan aspek di luar kewenangan role
+            $aspek = $allowedAspects->get((int) $aspekId);
+            if (! $aspek) {
+                continue;
             }
 
+            $isTeknis = $aspek->category === AspekProduktif::CATEGORY_TEKNIS;
+
             // Nilai kosong (null setelah ConvertEmptyStringsToNull) menghapus skor.
-            if ($score === null && ($category !== AspekProduktif::CATEGORY_TEKNIS || blank($labels[$aspekId] ?? null))) {
+            if ($score === null && (! $isTeknis || blank($labels[$aspekId] ?? null))) {
                 Evaluation::query()
                     ->where('student_id', $student->id)
                     ->where('aspek_produktif_id', (int) $aspekId)
@@ -231,7 +231,10 @@ class AssessmentController extends Controller
 
             Evaluation::query()->updateOrCreate(
                 ['student_id' => $student->id, 'aspek_produktif_id' => (int) $aspekId],
-                ['score' => $score === null ? null : (int) $score, 'technical_label' => $category === AspekProduktif::CATEGORY_TEKNIS ? ($labels[$aspekId] ?? null) : null],
+                [
+                    'score' => $score === null ? null : (int) $score,
+                    'technical_label' => $isTeknis ? ($labels[$aspekId] ?? null) : null,
+                ],
             );
         }
 

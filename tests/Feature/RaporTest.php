@@ -42,9 +42,18 @@ class RaporTest extends TestCase
 
     public function test_disallowed_role_is_forbidden(): void
     {
-        $this->actingAs($this->user('guru'))
+        $userWithoutRole = User::factory()->create();
+
+        $this->actingAs($userWithoutRole)
             ->get('/rapor')
             ->assertForbidden();
+    }
+
+    public function test_guru_can_access_rapor(): void
+    {
+        $this->actingAs($this->user('guru'))
+            ->get('/rapor')
+            ->assertOk();
     }
 
     public function test_student_is_redirected_to_own_rapor(): void
