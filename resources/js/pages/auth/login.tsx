@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import {
     ArrowRight,
     Eye,
@@ -373,9 +373,13 @@ export default function Login({ status }: { status?: string }) {
                         </Form>
 
                         <p className="mt-8 text-center text-sm text-muted">
-                            Belum punya akun? Akun dibuat oleh admin sekolah —
-                            hubungi Kaprog atau Wakasek Humas untuk mendapatkan
-                            akses.
+                            Belum punya akun?{' '}
+                            <Link
+                                href="/register"
+                                className="font-semibold text-primary hover:underline"
+                            >
+                                Daftar di sini
+                            </Link>
                         </p>
                     </div>
                 </div>
