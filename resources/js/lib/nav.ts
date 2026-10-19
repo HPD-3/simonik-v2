@@ -65,6 +65,7 @@ import { index as statistikIndex } from '@/actions/App/Http/Controllers/Statisti
 import { index as studentsIndex } from '@/actions/App/Http/Controllers/StudentController';
 import { index as tagsIndex } from '@/actions/App/Http/Controllers/TagController';
 import { index as teachersIndex } from '@/actions/App/Http/Controllers/TeacherController';
+import { index as usersIndex } from '@/actions/App/Http/Controllers/UserController';
 import { index as wakaseksIndex } from '@/actions/App/Http/Controllers/WakasekController';
 import { edit as websiteSettingsEdit } from '@/actions/App/Http/Controllers/WebsiteSettingController';
 import { edit as whatsappCtaEdit } from '@/actions/App/Http/Controllers/WhatsappCtaSettingController';
@@ -318,6 +319,12 @@ export const navSections: NavSection[] = [
         title: 'Akun',
         items: [
             { label: 'Profil', icon: UserCog, href: profileEdit.url() },
+            {
+                label: 'User',
+                icon: Users,
+                href: usersIndex.url(),
+                roles: ['admin'],
+            },
             {
                 label: 'Website Settings',
                 icon: Globe,

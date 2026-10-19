@@ -35,6 +35,7 @@ use App\Http\Controllers\StreakController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TeacherController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\WakasekController;
 use App\Http\Controllers\WebsiteSettingController;
@@ -87,8 +88,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('profile/data-diri', [ProfileController::class, 'updateStudentProfile'])->name('profile.student.update');
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 
-    // Pengaturan favicon situs — hanya Super Admin.
+    // Pengaturan favicon situs & User Management — hanya Super Admin.
     Route::middleware('role:admin')->group(function () {
+        Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::get('pengaturan-website', [WebsiteSettingController::class, 'edit'])->name('website-settings.edit');
         Route::put('pengaturan-website', [WebsiteSettingController::class, 'update'])->name('website-settings.update');
 
