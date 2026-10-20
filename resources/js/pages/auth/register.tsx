@@ -20,6 +20,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
 import { Select } from '@/components/ui/select';
+import { EMAIL_DOMAIN } from '@/components/ui/email-input';
 
 type ClassItem = {
     id: number;
@@ -76,9 +77,18 @@ function Field({
 const inputClass =
     'w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none';
 
+function formatEmailSlug(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '.')
+        .replace(/\.+/g, '.')
+        .replace(/^\.+|\.+$/g, '');
+}
+
 export default function Register({ classes, students }: RegisterProps) {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
+    const [emailEdited, setEmailEdited] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         role: 'orangtua',
@@ -234,7 +244,22 @@ export default function Register({ classes, students }: RegisterProps) {
                                     type="text"
                                     required
                                     value={data.name}
-                                    onChange={(e) => setData('name', e.target.value)}
+                                    onChange={(e) => {
+                                        const newName = e.target.value;
+                                        setData((prev) => {
+                                            const nextEmail = !emailEdited
+                                                ? formatEmailSlug(newName)
+                                                    ? `${formatEmailSlug(newName)}@${EMAIL_DOMAIN}`
+                                                    : ''
+                                                : prev.email;
+
+                                            return {
+                                                ...prev,
+                                                name: newName,
+                                                email: nextEmail,
+                                            };
+                                        });
+                                    }}
                                     placeholder="Nama Lengkap Ayah / Ibu / Wali"
                                     className={inputClass}
                                 />
@@ -268,11 +293,14 @@ export default function Register({ classes, students }: RegisterProps) {
                                     <input
                                         id="email"
                                         name="email"
-                                        type="email"
+                                        type="text"
                                         required
                                         value={data.email}
-                                        onChange={(e) => setData('email', e.target.value)}
-                                        placeholder="orangtua@email.com"
+                                        onChange={(e) => {
+                                            setEmailEdited(true);
+                                            setData('email', e.target.value);
+                                        }}
+                                        placeholder={`nama.orangtua@${EMAIL_DOMAIN}`}
                                         className={inputClass}
                                     />
                                 </Field>

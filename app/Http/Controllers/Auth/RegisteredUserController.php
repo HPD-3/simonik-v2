@@ -7,6 +7,7 @@ use App\Models\Classes;
 use App\Models\Parents;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\ImportDefaults;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -50,6 +51,12 @@ class RegisteredUserController extends Controller
         if ($role !== 'orangtua') {
             throw ValidationException::withMessages([
                 'role' => 'Pendaftaran mandiri saat ini hanya tersedia untuk akun Orang Tua. Akun Guru dan Industri dibuat langsung oleh pihak sekolah.',
+            ]);
+        }
+
+        if ($request->filled('email')) {
+            $request->merge([
+                'email' => ImportDefaults::email((string) $request->input('email')),
             ]);
         }
 
