@@ -34,10 +34,10 @@ export function AnnouncementBoard() {
             {announcements.map((announcement) => (
                 <article
                     key={announcement.id}
-                    className="rounded-3xl border border-line bg-white p-5 sm:p-6"
+                    className="rounded-3xl border border-line bg-[#FFF373] p-5 sm:p-6"
                 >
                     <div className="flex items-start gap-3">
-                        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white text-primary shadow-xs">
                             <Megaphone className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
