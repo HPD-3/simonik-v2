@@ -31,7 +31,6 @@ class RegisteredUserController extends Controller
 
         $students = Student::query()
             ->whereNotNull('class_id')
-            ->whereNull('parent_id')
             ->orderBy('name')
             ->get(['id', 'name', 'class_id']);
 

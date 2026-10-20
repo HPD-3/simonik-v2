@@ -28,7 +28,7 @@ class RegistrationTest extends TestCase
     public function test_registration_screen_can_be_rendered(): void
     {
         $class = Classes::factory()->create();
-        Student::factory()->create(['class_id' => $class->id, 'parent_id' => null]);
+        Student::factory()->create(['class_id' => $class->id]);
 
         $response = $this->get('/register');
 
