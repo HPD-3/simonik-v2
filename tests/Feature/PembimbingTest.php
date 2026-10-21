@@ -178,6 +178,20 @@ class PembimbingTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $userId]);
     }
 
+    public function test_admin_can_bulk_delete_pembimbings(): void
+    {
+        $pembimbings = Pembimbing::factory()->count(3)->create();
+        $ids = $pembimbings->pluck('id')->all();
+
+        $this->actingAs($this->admin())
+            ->delete('/pembimbings/bulk', ['ids' => $ids])
+            ->assertRedirect();
+
+        foreach ($pembimbings as $pembimbing) {
+            $this->assertDatabaseMissing('pembimbings', ['id' => $pembimbing->id]);
+        }
+    }
+
     public function test_pembimbing_linked_to_industry_can_still_be_deleted(): void
     {
         $pembimbing = Pembimbing::factory()->create();
