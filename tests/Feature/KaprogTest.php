@@ -104,6 +104,21 @@ class KaprogTest extends TestCase
         $this->assertDatabaseHas('departemens', ['id' => $dep->id, 'user_id' => null]);
     }
 
+    public function test_admin_can_bulk_delete_kaprogs(): void
+    {
+        $user1 = User::factory()->create();
+        $user1->assignRole('kaprog');
+        $user2 = User::factory()->create();
+        $user2->assignRole('kaprog');
+
+        $this->actingAs($this->admin())
+            ->delete('/kaprogs/bulk', ['ids' => [$user1->id, $user2->id]])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('users', ['id' => $user1->id]);
+        $this->assertDatabaseMissing('users', ['id' => $user2->id]);
+    }
+
     public function test_admin_cannot_delete_their_own_account(): void
     {
         $admin = $this->admin();

@@ -201,10 +201,7 @@ export default function UsersIndex({
                                         Role
                                     </th>
                                     <th className="px-3 pb-3 font-semibold">
-                                        Nama Lengkap
-                                    </th>
-                                    <th className="px-3 pb-3 font-semibold">
-                                        Email
+                                        Nama Lengkap / Email
                                     </th>
                                     <th className="px-3 pb-3 font-semibold">
                                         Password
@@ -250,11 +247,13 @@ export default function UsersIndex({
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3.5 font-semibold text-ink">
-                                                {user.name}
-                                            </td>
-                                            <td className="px-3 py-3.5 text-ink/80">
-                                                {user.email}
+                                            <td className="px-3 py-3.5">
+                                                <p className="font-semibold text-ink">
+                                                    {user.name}
+                                                </p>
+                                                <p className="text-xs text-muted">
+                                                    {user.email}
+                                                </p>
                                             </td>
                                             <td className="px-3 py-3.5 text-xs text-muted font-mono tracking-widest">
                                                 {user.password_masked}

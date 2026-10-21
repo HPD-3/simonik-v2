@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ParentExport;
 use App\Http\Controllers\Concerns\HandlesImportExport;
+use App\Http\Requests\BulkDestroyRequest;
 use App\Http\Requests\StoreParentRequest;
 use App\Http\Requests\UpdateParentRequest;
 use App\Imports\ParentImport;
@@ -215,5 +216,43 @@ class ParentController extends Controller
         }
 
         return back()->with('success', 'Orang tua berhasil dihapus.');
+    }
+
+    /**
+     * Hapus beberapa orang tua sekaligus.
+     */
+    public function bulkDestroy(BulkDestroyRequest $request): RedirectResponse
+    {
+        /** @var array<int, int> $ids */
+        $ids = $request->validated('ids');
+        $parents = Parents::query()->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+        $blocked = 0;
+
+        DB::transaction(function () use ($parents, &$deleted, &$blocked): void {
+            foreach ($parents as $parent) {
+                if ($parent->students()->exists()) {
+                    $blocked++;
+                    continue;
+                }
+
+                if ($parent->users) {
+                    $parent->users->delete();
+                } else {
+                    $parent->delete();
+                }
+                $deleted++;
+            }
+        });
+
+        $message = "{$deleted} orang tua berhasil dihapus.";
+        if ($blocked > 0) {
+            $message .= " {$blocked} orang tua dilewati karena masih terhubung dengan siswa.";
+        }
+
+        return redirect()
+            ->route('parents.index')
+            ->with($deleted > 0 ? 'success' : 'error', $message);
     }
 }

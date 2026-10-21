@@ -8,6 +8,7 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceMonitorController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateTemplateController;
 use App\Http\Controllers\ClassController;
@@ -76,8 +77,8 @@ Route::get('sw.js', function () {
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
-    Route::get('register', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'create'])->name('register');
-    Route::post('register', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'store'])
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store'])
         ->middleware('throttle:5,1');
 });
 
@@ -130,6 +131,8 @@ Route::middleware('auth')->group(function () {
         Route::post('students/import/preview', [StudentController::class, 'importPreview'])->name('students.import-preview');
         Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
         Route::delete('students/bulk', [StudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
+        Route::delete('teachers/bulk', [TeacherController::class, 'bulkDestroy'])->name('teachers.bulk-destroy');
+        Route::delete('parents/bulk', [ParentController::class, 'bulkDestroy'])->name('parents.bulk-destroy');
 
         // Impor/ekspor master data lain — literal path didahulukan sebelum resource
         // agar tidak tertangkap route show `{id}`.
@@ -148,6 +151,9 @@ Route::middleware('auth')->group(function () {
 
         // Wakasek & Kaprog — hanya Super Admin.
         Route::middleware('role:admin')->group(function (): void {
+            Route::delete('wakaseks/bulk', [WakasekController::class, 'bulkDestroy'])->name('wakaseks.bulk-destroy');
+            Route::delete('kaprogs/bulk', [KaprogController::class, 'bulkDestroy'])->name('kaprogs.bulk-destroy');
+
             foreach ([
                 'wakaseks' => WakasekController::class,
                 'kaprogs' => KaprogController::class,
@@ -228,7 +234,9 @@ Route::middleware('auth')->group(function () {
         // Penelusuran berjenjang: Jurusan -> Kelas -> Murid -> rekap nilai.
         Route::get('penilaian', [AssessmentController::class, 'index'])->name('assessments.index');
         Route::get('penilaian/jurusan/{departemen}', [AssessmentController::class, 'classes'])->name('assessments.classes');
+        Route::get('penilaian/jurusan/{departemen}/export', [AssessmentController::class, 'exportDepartemen'])->name('assessments.export-departemen');
         Route::get('penilaian/kelas/{class}', [AssessmentController::class, 'students'])->name('assessments.students');
+        Route::get('penilaian/kelas/{class}/export', [AssessmentController::class, 'exportClass'])->name('assessments.export-class');
         Route::get('penilaian/{student}', [AssessmentController::class, 'show'])->name('assessments.show');
         Route::put('penilaian/{student}', [AssessmentController::class, 'update'])
             ->middleware('role:pembimbing')

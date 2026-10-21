@@ -134,6 +134,20 @@ class TeacherTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $userId]);
     }
 
+    public function test_admin_can_bulk_delete_teachers(): void
+    {
+        $teachers = Teacher::factory()->count(3)->create();
+        $ids = $teachers->pluck('id')->all();
+
+        $this->actingAs($this->admin())
+            ->delete('/teachers/bulk', ['ids' => $ids])
+            ->assertRedirect();
+
+        foreach ($teachers as $teacher) {
+            $this->assertDatabaseMissing('teachers', ['id' => $teacher->id]);
+        }
+    }
+
     public function test_teacher_with_students_cannot_be_deleted(): void
     {
         // Siswa terhubung ke guru lewat industri yang diampu guru tsb.

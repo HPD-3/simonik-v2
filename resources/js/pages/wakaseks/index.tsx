@@ -9,8 +9,10 @@ import {
     exportMethod,
     importMethod,
     template,
+    bulkDestroy,
 } from '@/actions/App/Http/Controllers/WakasekController';
 import { ImportExportBar } from '@/components/import-export-bar';
+import { Modal } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { AppLayout } from '@/layouts/app-layout';
 import type { Paginated } from '@/types';
@@ -48,6 +50,36 @@ export default function WakaseksIndex({
     filters,
 }: WakaseksIndexProps) {
     const [search, setSearch] = useState(filters.search);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [bulkOpen, setBulkOpen] = useState(false);
+
+    const pageIds = wakaseks.data.map((wakasek) => wakasek.id);
+    const onPage = selected.filter((id) => pageIds.includes(id));
+    const allChecked = pageIds.length > 0 && onPage.length === pageIds.length;
+    const someChecked = onPage.length > 0 && !allChecked;
+
+    function toggle(id: number) {
+        setSelected((current) =>
+            current.includes(id)
+                ? current.filter((value) => value !== id)
+                : [...current, id],
+        );
+    }
+
+    function toggleAll() {
+        setSelected(allChecked ? [] : pageIds);
+    }
+
+    function removeSelected() {
+        router.delete(bulkDestroy.url(), {
+            data: { ids: onPage },
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelected([]);
+                setBulkOpen(false);
+            },
+        });
+    }
 
     function applyFilters(nextSearch: string) {
         router.get(
@@ -147,28 +179,85 @@ export default function WakaseksIndex({
                         </p>
                     </div>
                 ) : (
-                    <div className="mt-4 overflow-x-auto">
-                        <table className="w-full min-w-lg border-collapse text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-line text-xs font-semibold tracking-wide text-muted uppercase">
-                                    <th className="px-3 pb-3 font-semibold">
-                                        Wakasek
-                                    </th>
-                                    <th className="px-3 pb-3 font-semibold">
-                                        Terdaftar
-                                    </th>
-                                    <th className="px-3 pb-3 text-right font-semibold">
-                                        Aksi
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-line">
-                                {wakaseks.data.map((wakasek) => (
-                                    <tr
-                                        key={wakasek.id}
-                                        className="group transition-colors hover:bg-canvas/50"
+                    <div className="mt-4 space-y-3">
+                        {onPage.length > 0 && (
+                            <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary-soft/40 px-4 py-2.5 text-sm">
+                                <span className="font-medium text-ink">
+                                    <strong className="font-bold text-primary">
+                                        {onPage.length}
+                                    </strong>{' '}
+                                    wakasek dipilih di halaman ini
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelected([])}
+                                        className="rounded-xl px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-ink"
                                     >
-                                        <td className="py-3 pr-3 pl-2">
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkOpen(true)}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                                    >
+                                        <Trash2 className="size-4" />
+                                        Hapus terpilih
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-lg border-collapse text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-line text-xs font-semibold tracking-wide text-muted uppercase">
+                                        <th className="w-10 pb-3 pl-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={allChecked}
+                                                ref={(node) => {
+                                                    if (node) {
+                                                        node.indeterminate =
+                                                            someChecked;
+                                                    }
+                                                }}
+                                                onChange={toggleAll}
+                                                aria-label="Pilih semua wakasek di halaman ini"
+                                                className="size-4 cursor-pointer accent-primary"
+                                            />
+                                        </th>
+                                        <th className="px-3 pb-3 font-semibold">
+                                            Wakasek
+                                        </th>
+                                        <th className="px-3 pb-3 font-semibold">
+                                            Terdaftar
+                                        </th>
+                                        <th className="px-3 pb-3 text-right font-semibold">
+                                            Aksi
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-line">
+                                    {wakaseks.data.map((wakasek) => (
+                                        <tr
+                                            key={wakasek.id}
+                                            className="group transition-colors hover:bg-canvas/50"
+                                        >
+                                            <td className="py-3 pl-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected.includes(
+                                                        wakasek.id,
+                                                    )}
+                                                    onChange={() =>
+                                                        toggle(wakasek.id)
+                                                    }
+                                                    aria-label={`Pilih ${wakasek.name}`}
+                                                    className="size-4 cursor-pointer accent-primary"
+                                                />
+                                            </td>
+                                            <td className="py-3 pr-3 pl-2">
                                             <div className="flex items-center gap-3">
                                                 <Avatar name={wakasek.name} />
                                                 <div className="min-w-0">
@@ -210,10 +299,44 @@ export default function WakaseksIndex({
                             </tbody>
                         </table>
                     </div>
+                </div>
                 )}
 
                 <Pagination meta={wakaseks} />
             </section>
+
+            <Modal
+                open={bulkOpen}
+                onClose={() => setBulkOpen(false)}
+                title="Hapus akun wakasek terpilih"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-muted">
+                        <span className="font-semibold text-ink">
+                            {onPage.length} akun wakasek
+                        </span>{' '}
+                        akan dihapus beserta hak aksesnya. Tindakan ini tidak
+                        bisa dibatalkan.
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setBulkOpen(false)}
+                            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-ink/70 transition-colors hover:bg-canvas"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="button"
+                            onClick={removeSelected}
+                            className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                        >
+                            <Trash2 className="size-4" />
+                            Hapus {onPage.length} wakasek
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </AppLayout>
     );
 }

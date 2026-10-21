@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\KaprogExport;
 use App\Http\Controllers\Concerns\HandlesImportExport;
 use App\Http\Controllers\Concerns\ResolvesRoleAccount;
+use App\Http\Requests\BulkDestroyRequest;
 use App\Http\Requests\StoreKaprogRequest;
 use App\Http\Requests\UpdateKaprogRequest;
 use App\Imports\KaprogImport;
@@ -174,6 +175,41 @@ class KaprogController extends Controller
         });
 
         return back()->with('success', $this->detachMessage($kaprog, $deleted, 'Kepala program'));
+    }
+
+    /**
+     * Hapus beberapa akun kaprog sekaligus.
+     */
+    public function bulkDestroy(BulkDestroyRequest $request): RedirectResponse
+    {
+        /** @var array<int, int> $ids */
+        $ids = $request->validated('ids');
+        $kaprogs = User::role('kaprog')->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+        $blocked = 0;
+
+        DB::transaction(function () use ($kaprogs, &$deleted, &$blocked): void {
+            foreach ($kaprogs as $kaprog) {
+                if ($kaprog->id === Auth::id()) {
+                    $blocked++;
+                    continue;
+                }
+
+                Departemen::query()->where('user_id', $kaprog->id)->update(['user_id' => null]);
+                $this->detachRole($kaprog, 'kaprog');
+                $deleted++;
+            }
+        });
+
+        $message = "{$deleted} akun kepala program berhasil dihapus.";
+        if ($blocked > 0) {
+            $message .= " {$blocked} akun dilewati karena merupakan akun Anda sendiri.";
+        }
+
+        return redirect()
+            ->route('kaprogs.index')
+            ->with($deleted > 0 ? 'success' : 'error', $message);
     }
 
     /**

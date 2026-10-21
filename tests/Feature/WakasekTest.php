@@ -103,6 +103,21 @@ class WakasekTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $wakasek->id]);
     }
 
+    public function test_admin_can_bulk_delete_wakaseks(): void
+    {
+        $user1 = User::factory()->create();
+        $user1->assignRole('wakasek');
+        $user2 = User::factory()->create();
+        $user2->assignRole('wakasek');
+
+        $this->actingAs($this->admin())
+            ->delete('/wakaseks/bulk', ['ids' => [$user1->id, $user2->id]])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('users', ['id' => $user1->id]);
+        $this->assertDatabaseMissing('users', ['id' => $user2->id]);
+    }
+
     public function test_admin_cannot_delete_their_own_account(): void
     {
         $admin = $this->admin();
