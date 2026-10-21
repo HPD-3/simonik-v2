@@ -3,15 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Classes;
-use App\Models\Departemen;
-use App\Models\Industry;
 use App\Models\Parents;
 use App\Models\Student;
-use App\Models\Teacher;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -68,7 +64,7 @@ class RegistrationTest extends TestCase
             'name' => 'Orang Tua Test',
             'phoneNumber' => '081234567890',
             'alamat' => 'Jl. Mawar No. 12',
-            'email' => 'ortu@example.com',
+            'email' => 'ortu@simonik.local',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'class_id' => $class->id,
@@ -78,7 +74,7 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('date_of_birth');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'ortu@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'ortu@simonik.local']);
     }
 
     public function test_registration_fails_if_student_does_not_belong_to_selected_class(): void
@@ -96,7 +92,7 @@ class RegistrationTest extends TestCase
             'name' => 'Orang Tua Test',
             'phoneNumber' => '081234567890',
             'alamat' => 'Jl. Mawar No. 12',
-            'email' => 'ortu@example.com',
+            'email' => 'ortu@simonik.local',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'class_id' => $class2->id, // Kelas tidak cocok dengan siswa
@@ -123,7 +119,7 @@ class RegistrationTest extends TestCase
             'name' => 'Orang Tua Lain',
             'phoneNumber' => '081234567890',
             'alamat' => 'Jl. Mawar No. 12',
-            'email' => 'ortulain@example.com',
+            'email' => 'ortulain@simonik.local',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'class_id' => $class->id,
@@ -133,7 +129,7 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('student_id');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'ortulain@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'ortulain@simonik.local']);
     }
 
     public function test_parent_can_register_successfully_with_exact_child_birth_date(): void
@@ -150,7 +146,7 @@ class RegistrationTest extends TestCase
             'name' => 'Budi Santoso',
             'phoneNumber' => '081234567890',
             'alamat' => 'Jl. Kenanga No. 5',
-            'email' => 'budi.santoso@example.com',
+            'email' => 'budi.santoso@simonik.local',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'class_id' => $class->id,
@@ -161,7 +157,7 @@ class RegistrationTest extends TestCase
         $response->assertRedirect(route('dashboard'));
         $this->assertAuthenticated();
 
-        $user = User::where('email', 'budi.santoso@example.com')->first();
+        $user = User::where('email', 'budi.santoso@simonik.local')->first();
         $this->assertNotNull($user);
         $this->assertTrue($user->hasRole('orangtua'));
 
@@ -173,6 +169,60 @@ class RegistrationTest extends TestCase
 
         // Pastikan murid terhubung ke orang tua tersebut
         $this->assertSame($parent->id, $student->fresh()->parent_id);
+    }
+
+    public function test_registration_fails_if_email_domain_is_not_simonik_local(): void
+    {
+        $class = Classes::factory()->create();
+        $student = Student::factory()->create([
+            'class_id' => $class->id,
+            'dateOfBirth' => '2007-05-15',
+            'parent_id' => null,
+        ]);
+
+        $response = $this->post('/register', [
+            'role' => 'orangtua',
+            'name' => 'Muhamad Hafidh Khoerullah',
+            'phoneNumber' => '081234567890',
+            'alamat' => 'Jl. Kenanga No. 5',
+            'email' => 'muhamad.hafidh.khoerullah@gmail.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'class_id' => $class->id,
+            'student_id' => $student->id,
+            'date_of_birth' => '2007-05-15',
+        ]);
+
+        $response->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
+    public function test_registration_automatically_derives_email_from_full_name_if_omitted(): void
+    {
+        $class = Classes::factory()->create();
+        $student = Student::factory()->create([
+            'class_id' => $class->id,
+            'dateOfBirth' => '2007-05-15',
+            'parent_id' => null,
+        ]);
+
+        $response = $this->post('/register', [
+            'role' => 'orangtua',
+            'name' => 'Muhamad Hafidh Khoerullah',
+            'phoneNumber' => '081234567890',
+            'alamat' => 'Jl. Kenanga No. 5',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'class_id' => $class->id,
+            'student_id' => $student->id,
+            'date_of_birth' => '2007-05-15',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+
+        $user = User::where('email', 'muhamad.hafidh.khoerullah@simonik.local')->first();
+        $this->assertNotNull($user);
     }
 
     public function test_authenticated_user_cannot_access_register(): void
@@ -196,10 +246,10 @@ class RegistrationTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $this->post('/register', [
                 'role' => 'orangtua',
-                'name' => 'Test ' . $i,
+                'name' => 'Test '.$i,
                 'phoneNumber' => '081234567890',
                 'alamat' => 'Jl. Mawar',
-                'email' => "test{$i}@example.com",
+                'email' => "test{$i}@simonik.local",
                 'password' => 'password123',
                 'password_confirmation' => 'password123',
                 'class_id' => $class->id,
@@ -214,7 +264,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test 6',
             'phoneNumber' => '081234567890',
             'alamat' => 'Jl. Mawar',
-            'email' => 'test6@example.com',
+            'email' => 'test6@simonik.local',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'class_id' => $class->id,

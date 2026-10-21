@@ -3,7 +3,6 @@ import {
     ArrowRight,
     Briefcase,
     Calendar,
-    ChevronDown,
     Eye,
     EyeOff,
     GraduationCap,
@@ -19,8 +18,9 @@ import {
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
+import { EMAIL_DOMAIN, usernameOf } from '@/components/ui/email-input';
 import { Select } from '@/components/ui/select';
-import { EMAIL_DOMAIN } from '@/components/ui/email-input';
+import { cn } from '@/lib/utils';
 
 type ClassItem = {
     id: number;
@@ -44,27 +44,39 @@ function Field({
     icon,
     children,
     action,
+    suffix,
+    hint,
 }: {
     label: string;
     error?: string;
-    icon: ReactNode;
+    icon?: ReactNode;
     children: ReactNode;
     action?: ReactNode;
+    suffix?: ReactNode;
+    hint?: ReactNode;
 }) {
     return (
         <div>
-            <div className="group flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-2.5 transition-all focus-within:border-primary focus-within:shadow-lg focus-within:ring-2 focus-within:shadow-primary/10 focus-within:ring-primary/15">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary transition-colors group-focus-within:bg-primary group-focus-within:text-white">
-                    {icon}
-                </span>
-                <div className="min-w-0 flex-1">
-                    <span className="block text-[11px] font-medium text-muted">
-                        {label}
-                    </span>
-                    {children}
+            <div className="group flex items-stretch overflow-hidden rounded-2xl border border-line bg-surface transition-all focus-within:border-primary focus-within:shadow-lg focus-within:ring-2 focus-within:shadow-primary/10 focus-within:ring-primary/15">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+                    {icon && (
+                        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary transition-colors group-focus-within:bg-primary group-focus-within:text-white sm:size-9">
+                            {icon}
+                        </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <span className="block text-[10px] font-medium text-muted sm:text-[11px]">
+                            {label}
+                        </span>
+                        {children}
+                    </div>
+                    {action}
                 </div>
-                {action}
+                {suffix}
             </div>
+            {hint && !error && (
+                <p className="mt-1 px-1 text-xs text-muted">{hint}</p>
+            )}
             {error && (
                 <p className="mt-1 px-1 text-xs font-medium text-red-500">
                     {error}
@@ -87,8 +99,8 @@ function formatEmailSlug(text: string): string {
 
 export default function Register({ classes, students }: RegisterProps) {
     const [showPassword, setShowPassword] = useState(false);
-    const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
-    const [emailEdited, setEmailEdited] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] =
+        useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         role: 'orangtua',
@@ -125,7 +137,9 @@ export default function Register({ classes, students }: RegisterProps) {
             return [];
         }
 
-        return students.filter((s) => String(s.class_id) === String(data.class_id));
+        return students.filter(
+            (s) => String(s.class_id) === String(data.class_id),
+        );
     }, [students, data.class_id]);
 
     const studentOptions = useMemo(
@@ -207,16 +221,18 @@ export default function Register({ classes, students }: RegisterProps) {
                             )}
                         </span>
                         <h3 className="mt-3 text-base font-bold text-ink">
-                            Pendaftaran Akun {data.role === 'guru' ? 'Guru' : 'Industri'}
+                            Pendaftaran Akun{' '}
+                            {data.role === 'guru' ? 'Guru' : 'Industri'}
                         </h3>
                         <p className="mt-2 text-sm text-muted">
-                            Pendaftaran mandiri saat ini hanya tersedia untuk akun{' '}
-                            <strong className="text-ink">Orang Tua</strong>. Akun Guru dan
-                            Pembimbing Industri didaftarkan dan diverifikasi langsung
-                            oleh pihak sekolah.
+                            Pendaftaran mandiri saat ini hanya tersedia untuk
+                            akun <strong className="text-ink">Orang Tua</strong>
+                            . Akun Guru dan Pembimbing Industri didaftarkan dan
+                            diverifikasi langsung oleh pihak sekolah.
                         </p>
                         <p className="mt-2 text-xs text-muted">
-                            Silakan hubungi Administrator sekolah, Kaprog, atau Wakasek Humas.
+                            Silakan hubungi Administrator sekolah, Kaprog, atau
+                            Wakasek Humas.
                         </p>
                         <div className="mt-6">
                             <button
@@ -246,19 +262,15 @@ export default function Register({ classes, students }: RegisterProps) {
                                     value={data.name}
                                     onChange={(e) => {
                                         const newName = e.target.value;
-                                        setData((prev) => {
-                                            const nextEmail = !emailEdited
-                                                ? formatEmailSlug(newName)
-                                                    ? `${formatEmailSlug(newName)}@${EMAIL_DOMAIN}`
-                                                    : ''
-                                                : prev.email;
+                                        const slug = formatEmailSlug(newName);
 
-                                            return {
-                                                ...prev,
-                                                name: newName,
-                                                email: nextEmail,
-                                            };
-                                        });
+                                        setData((prev) => ({
+                                            ...prev,
+                                            name: newName,
+                                            email: slug
+                                                ? `${slug}@${EMAIL_DOMAIN}`
+                                                : '',
+                                        }));
                                     }}
                                     placeholder="Nama Lengkap Ayah / Ibu / Wali"
                                     className={inputClass}
@@ -278,7 +290,10 @@ export default function Register({ classes, students }: RegisterProps) {
                                         required
                                         value={data.phoneNumber}
                                         onChange={(e) =>
-                                            setData('phoneNumber', e.target.value)
+                                            setData(
+                                                'phoneNumber',
+                                                e.target.value,
+                                            )
                                         }
                                         placeholder="081234567890"
                                         className={inputClass}
@@ -289,19 +304,36 @@ export default function Register({ classes, students }: RegisterProps) {
                                     label="Email"
                                     error={errors.email}
                                     icon={<Mail className="size-4" />}
+                                    suffix={
+                                        <span
+                                            aria-hidden="true"
+                                            className="grid shrink-0 place-items-center border-l border-line bg-canvas/60 px-2.5 text-[11px] font-semibold tracking-tight text-muted/80 select-none sm:px-3 sm:text-xs"
+                                        >
+                                            @{EMAIL_DOMAIN}
+                                        </span>
+                                    }
+                                    hint={
+                                        <>
+                                            Email otomatis:{' '}
+                                            <span className="font-semibold text-ink">
+                                                {data.email ||
+                                                    `nama.lengkap@${EMAIL_DOMAIN}`}
+                                            </span>
+                                        </>
+                                    }
                                 >
                                     <input
                                         id="email"
                                         name="email"
                                         type="text"
-                                        required
-                                        value={data.email}
-                                        onChange={(e) => {
-                                            setEmailEdited(true);
-                                            setData('email', e.target.value);
-                                        }}
-                                        placeholder={`nama.orangtua@${EMAIL_DOMAIN}`}
-                                        className={inputClass}
+                                        readOnly
+                                        tabIndex={-1}
+                                        value={usernameOf(data.email)}
+                                        placeholder="nama.lengkap"
+                                        className={cn(
+                                            inputClass,
+                                            'cursor-default text-xs text-ink/80 select-none sm:text-sm',
+                                        )}
                                     />
                                 </Field>
                             </div>
@@ -317,7 +349,9 @@ export default function Register({ classes, students }: RegisterProps) {
                                     type="text"
                                     required
                                     value={data.alamat}
-                                    onChange={(e) => setData('alamat', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('alamat', e.target.value)
+                                    }
                                     placeholder="Jl. Merdeka No. 10, Kota"
                                     className={inputClass}
                                 />
@@ -348,7 +382,9 @@ export default function Register({ classes, students }: RegisterProps) {
                                     <input
                                         id="password"
                                         name="password"
-                                        type={showPassword ? 'text' : 'password'}
+                                        type={
+                                            showPassword ? 'text' : 'password'
+                                        }
                                         required
                                         value={data.password}
                                         onChange={(e) =>
@@ -412,7 +448,8 @@ export default function Register({ classes, students }: RegisterProps) {
                                 Hubungkan Data Anak
                             </h2>
                             <p className="mt-1 text-xs text-muted">
-                                Pilih kelas dan nama anak Anda, serta isi tanggal lahirnya sebagai validasi keamanan.
+                                Pilih kelas dan nama anak Anda, serta isi
+                                tanggal lahirnya sebagai validasi keamanan.
                             </p>
 
                             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -445,7 +482,9 @@ export default function Register({ classes, students }: RegisterProps) {
                                     </label>
                                     <Select
                                         value={data.student_id}
-                                        onChange={(val) => setData('student_id', val)}
+                                        onChange={(val) =>
+                                            setData('student_id', val)
+                                        }
                                         options={studentOptions}
                                         placeholder="Pilih Nama Murid"
                                         disabled={!data.class_id}
@@ -471,14 +510,19 @@ export default function Register({ classes, students }: RegisterProps) {
                                         required
                                         value={data.date_of_birth}
                                         onChange={(e) =>
-                                            setData('date_of_birth', e.target.value)
+                                            setData(
+                                                'date_of_birth',
+                                                e.target.value,
+                                            )
                                         }
                                         className={inputClass}
                                     />
                                 </Field>
                                 <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
                                     <Info className="size-3.5 shrink-0 text-primary" />
-                                    Akun orang tua berhasil didaftarkan apabila tanggal lahir anak sesuai dengan data sekolah.
+                                    Akun orang tua berhasil didaftarkan apabila
+                                    tanggal lahir anak sesuai dengan data
+                                    sekolah.
                                 </p>
                             </div>
                         </div>

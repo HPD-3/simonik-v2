@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -58,18 +59,33 @@ class RegisteredUserController extends Controller
             $request->merge([
                 'email' => ImportDefaults::email((string) $request->input('email')),
             ]);
+        } elseif ($request->filled('name')) {
+            $slug = Str::slug((string) $request->input('name'), '.');
+            $request->merge([
+                'email' => ImportDefaults::email($slug),
+            ]);
         }
 
         $validated = $request->validate([
             'role' => ['required', 'string'],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'ends_with:@'.ImportDefaults::EMAIL_DOMAIN,
+                'max:255',
+                'unique:'.User::class,
+            ],
             'phoneNumber' => ['required', 'string', 'max:25'],
             'alamat' => ['required', 'string', 'max:500'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'class_id' => ['required', 'exists:classes,id'],
             'student_id' => ['required', 'exists:students,id'],
             'date_of_birth' => ['required', 'date'],
+        ], [
+            'email.ends_with' => 'Domain email wajib @'.ImportDefaults::EMAIL_DOMAIN,
         ]);
 
         /** @var Student|null $student */
