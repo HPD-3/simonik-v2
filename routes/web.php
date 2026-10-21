@@ -132,6 +132,7 @@ Route::middleware('auth')->group(function () {
         Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
         Route::delete('students/bulk', [StudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
         Route::delete('teachers/bulk', [TeacherController::class, 'bulkDestroy'])->name('teachers.bulk-destroy');
+        Route::delete('pembimbings/bulk', [PembimbingController::class, 'bulkDestroy'])->name('pembimbings.bulk-destroy');
         Route::delete('parents/bulk', [ParentController::class, 'bulkDestroy'])->name('parents.bulk-destroy');
 
         // Impor/ekspor master data lain — literal path didahulukan sebelum resource

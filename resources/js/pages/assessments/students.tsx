@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { ClipboardList, Search } from 'lucide-react';
+import { AlertCircle, ClipboardList, Download, Search } from 'lucide-react';
 import { useState } from 'react';
 import {
     classes,
@@ -23,13 +23,15 @@ type StudentRow = {
     scored: number;
     avg: number | null;
     grade: Grade | null;
+    is_complete: boolean;
 };
 
 type Props = {
     departemen: { id: number; name: string } | null;
     class: { id: number; name: string };
     students: Paginated<StudentRow>;
-    filters: { search: string };
+    filters: { search: string; status?: string };
+    statusCounts: { all: number; sudah: number; belum: number };
     aspectTotal: number;
 };
 
@@ -38,9 +40,32 @@ export default function AssessmentsStudents({
     class: klass,
     students: rows,
     filters,
+    statusCounts,
     aspectTotal,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
+
+    function applyFilter(next: { search?: string; status?: string }) {
+        const params: Record<string, string> = {};
+        const effectiveSearch =
+            next.search !== undefined ? next.search : search;
+        const effectiveStatus =
+            next.status !== undefined ? next.status : (filters.status ?? '');
+
+        if (effectiveSearch.trim() !== '') {
+            params.search = effectiveSearch.trim();
+        }
+
+        if (effectiveStatus !== '') {
+            params.status = effectiveStatus;
+        }
+
+        router.get(students.url(klass.id), params, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
+    }
 
     return (
         <AppLayout title="Rekap Penilaian">
@@ -58,27 +83,101 @@ export default function AssessmentsStudents({
                     ]}
                 />
 
-                <h2 className="mt-4 text-base font-bold text-ink">
-                    Penilaian kelas {klass.name}
-                </h2>
-                <p className="text-sm text-muted">
-                    {rows.total} murid · {aspectTotal} aspek penilaian
-                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-bold text-ink">
+                            Penilaian kelas {klass.name}
+                        </h2>
+                        <p className="text-sm text-muted">
+                            {rows.total} murid · {aspectTotal} aspek penilaian
+                        </p>
+                    </div>
+                    <a
+                        href={`/penilaian/kelas/${klass.id}/export`}
+                        className="inline-flex items-center gap-2 self-start rounded-xl border border-line bg-canvas/60 px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-primary/40 hover:bg-canvas sm:self-auto"
+                    >
+                        <Download className="size-4 text-primary" />
+                        Download Nilai PKL (.xlsx)
+                    </a>
+                </div>
+
+                {/* Filter Status: Semua, Penilaian Sudah, Penilaian Belum */}
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => applyFilter({ status: '' })}
+                        className={cn(
+                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors',
+                            !filters.status
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'border border-line bg-canvas/40 text-muted hover:border-primary/40 hover:text-ink',
+                        )}
+                    >
+                        <span>Semua</span>
+                        <span
+                            className={cn(
+                                'py-0.2 rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+                                !filters.status
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-line text-muted',
+                            )}
+                        >
+                            {statusCounts.all}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => applyFilter({ status: 'sudah' })}
+                        className={cn(
+                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors',
+                            filters.status === 'sudah'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'border border-line bg-canvas/40 text-muted hover:border-emerald-500/40 hover:text-ink',
+                        )}
+                    >
+                        <span>Penilaian Sudah</span>
+                        <span
+                            className={cn(
+                                'py-0.2 rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+                                filters.status === 'sudah'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                            )}
+                        >
+                            {statusCounts.sudah}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => applyFilter({ status: 'belum' })}
+                        className={cn(
+                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors',
+                            filters.status === 'belum'
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'border border-line bg-canvas/40 text-muted hover:border-rose-500/40 hover:text-ink',
+                        )}
+                    >
+                        <AlertCircle className="size-3.5" />
+                        <span>Penilaian Belum</span>
+                        <span
+                            className={cn(
+                                'py-0.2 rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+                                filters.status === 'belum'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+                            )}
+                        >
+                            {statusCounts.belum}
+                        </span>
+                    </button>
+                </div>
 
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
-                        router.get(
-                            students.url(klass.id),
-                            { search },
-                            {
-                                preserveState: true,
-                                replace: true,
-                                preserveScroll: true,
-                            },
-                        );
+                        applyFilter({ search });
                     }}
-                    className="mt-5"
+                    className="mt-3"
                 >
                     <label className="flex items-center gap-2 rounded-xl border border-line bg-canvas/40 px-4 py-2.5 text-sm text-muted">
                         <Search className="size-4" />
@@ -159,6 +258,14 @@ export default function AssessmentsStudents({
                                                     >
                                                         {student.grade}
                                                     </span>
+                                                    {!student.is_complete && (
+                                                        <span
+                                                            title="Nilai belum lengkap"
+                                                            className="inline-flex items-center rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400"
+                                                        >
+                                                            Belum lengkap
+                                                        </span>
+                                                    )}
                                                 </span>
                                             )}
                                         </td>

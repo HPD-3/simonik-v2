@@ -269,4 +269,136 @@ class AssessmentTest extends TestCase
             $this->assertSame($grade, Evaluation::gradeFor($score));
         }
     }
+
+    public function test_unassessed_alert_count_on_departments_and_classes(): void
+    {
+        $s = $this->scenario();
+        $admin = $this->user('admin');
+
+        // Sebelum dinilai: unassessed = 1 (karena ada 2 aspek master di scenario, 0 dinilai)
+        $this->actingAs($admin)
+            ->get('/penilaian')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/index')
+                ->where('departemens.0.unassessed', 1)
+            );
+
+        $this->actingAs($admin)
+            ->get("/penilaian/jurusan/{$s['student']->departemen_id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/classes')
+                ->where('classes.0.unassessed', 1)
+            );
+
+        // Berikan semua nilai
+        Evaluation::factory()->create([
+            'student_id' => $s['student']->id,
+            'aspek_produktif_id' => $s['teknis']->id,
+            'score' => 90,
+        ]);
+        Evaluation::factory()->create([
+            'student_id' => $s['student']->id,
+            'aspek_produktif_id' => $s['nonTeknis']->id,
+            'score' => 85,
+        ]);
+
+        // Setelah lengkap dinilai: unassessed = 0
+        $this->actingAs($admin)
+            ->get('/penilaian')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/index')
+                ->where('departemens.0.unassessed', 0)
+            );
+
+        $this->actingAs($admin)
+            ->get("/penilaian/jurusan/{$s['student']->departemen_id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/classes')
+                ->where('classes.0.unassessed', 0)
+            );
+    }
+
+    public function test_students_filter_sudah_and_belum(): void
+    {
+        $s = $this->scenario();
+        $admin = $this->user('admin');
+
+        // Siswa 1 belum lengkap dinilai
+        $student2 = Student::factory()->create([
+            'class_id' => $s['student']->class_id,
+            'departemen_id' => $s['student']->departemen_id,
+        ]);
+
+        // Siswa 2 lengkap dinilai
+        Evaluation::factory()->create([
+            'student_id' => $student2->id,
+            'aspek_produktif_id' => $s['teknis']->id,
+            'score' => 88,
+        ]);
+        Evaluation::factory()->create([
+            'student_id' => $student2->id,
+            'aspek_produktif_id' => $s['nonTeknis']->id,
+            'score' => 92,
+        ]);
+
+        // Semua
+        $this->actingAs($admin)
+            ->get("/penilaian/kelas/{$s['student']->class_id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/students')
+                ->has('students.data', 2)
+                ->where('statusCounts.all', 2)
+                ->where('statusCounts.sudah', 1)
+                ->where('statusCounts.belum', 1)
+            );
+
+        // Filter: sudah
+        $this->actingAs($admin)
+            ->get("/penilaian/kelas/{$s['student']->class_id}?status=sudah")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/students')
+                ->has('students.data', 1)
+                ->where('students.data.0.id', $student2->id)
+            );
+
+        // Filter: belum
+        $this->actingAs($admin)
+            ->get("/penilaian/kelas/{$s['student']->class_id}?status=belum")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('assessments/students')
+                ->has('students.data', 1)
+                ->where('students.data.0.id', $s['student']->id)
+            );
+    }
+
+    public function test_admin_can_export_class_assessments_excel(): void
+    {
+        $s = $this->scenario();
+        $admin = $this->user('admin');
+
+        $response = $this->actingAs($admin)
+            ->get("/penilaian/kelas/{$s['student']->class_id}/export");
+
+        $response->assertOk();
+        $this->assertStringContainsString('rekap-nilai-', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_admin_can_export_department_assessments_excel(): void
+    {
+        $s = $this->scenario();
+        $admin = $this->user('admin');
+
+        $response = $this->actingAs($admin)
+            ->get("/penilaian/jurusan/{$s['student']->departemen_id}/export");
+
+        $response->assertOk();
+        $this->assertStringContainsString('rekap-nilai-', (string) $response->headers->get('content-disposition'));
+    }
 }

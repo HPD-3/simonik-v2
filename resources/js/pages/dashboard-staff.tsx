@@ -31,6 +31,7 @@ type DashboardStaffProps = {
     attendanceRate: RateByRange;
     journalRate: RateByRange;
     recentStudents: RecentStudent[];
+    scopeLabel?: string;
     today: string;
 };
 
@@ -39,6 +40,7 @@ export default function DashboardStaff({
     attendanceRate,
     journalRate,
     recentStudents,
+    scopeLabel,
     today,
 }: DashboardStaffProps) {
     return (
@@ -101,8 +103,8 @@ export default function DashboardStaff({
             <div className="mt-5">
                 <RecentStudentsTable
                     students={recentStudents}
-                    title="Siswa bimbingan terbaru"
-                    subtitle="Siswa dalam cakupan Anda"
+                    title="Siswa bimbingan"
+                    subtitle={scopeLabel ?? 'Siswa dalam cakupan Anda'}
                     emptyText="Belum ada siswa dalam cakupan Anda."
                 />
             </div>

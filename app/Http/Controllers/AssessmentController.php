@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AssessmentExport;
 use App\Http\Controllers\Concerns\ScopesStudentsByRole;
 use App\Http\Requests\AssessmentRequest;
 use App\Models\AspekProduktif;
@@ -10,11 +11,15 @@ use App\Models\Departemen;
 use App\Models\Evaluation;
 use App\Models\Student;
 use App\Models\User;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AssessmentController extends Controller
 {
@@ -36,7 +41,16 @@ class AssessmentController extends Controller
             return redirect()->route('assessments.show', $student->id);
         }
 
+        $aspectTotal = AspekProduktif::query()->count();
+        $unassessedScope = $this->unassessedScope($aspectTotal);
+
         $counts = $this->scopedStudents($user)
+            ->selectRaw('departemen_id, count(*) as total')
+            ->groupBy('departemen_id')
+            ->pluck('total', 'departemen_id');
+
+        $unassessedCounts = $this->scopedStudents($user)
+            ->where($unassessedScope)
             ->selectRaw('departemen_id, count(*) as total')
             ->groupBy('departemen_id')
             ->pluck('total', 'departemen_id');
@@ -49,11 +63,12 @@ class AssessmentController extends Controller
                 'id' => $departemen->id,
                 'name' => $departemen->name,
                 'students' => (int) $counts->get($departemen->id, 0),
+                'unassessed' => (int) $unassessedCounts->get($departemen->id, 0),
             ]);
 
         return Inertia::render('assessments/index', [
             'departemens' => $departemens,
-            'aspectTotal' => AspekProduktif::query()->count(),
+            'aspectTotal' => $aspectTotal,
             'scopeLabel' => $this->scopeLabel($user),
         ]);
     }
@@ -66,8 +81,18 @@ class AssessmentController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $aspectTotal = AspekProduktif::query()->count();
+        $unassessedScope = $this->unassessedScope($aspectTotal);
+
         $counts = $this->scopedStudents($user)
             ->where('departemen_id', $departemen->id)
+            ->selectRaw('class_id, count(*) as total')
+            ->groupBy('class_id')
+            ->pluck('total', 'class_id');
+
+        $unassessedCounts = $this->scopedStudents($user)
+            ->where('departemen_id', $departemen->id)
+            ->where($unassessedScope)
             ->selectRaw('class_id, count(*) as total')
             ->groupBy('class_id')
             ->pluck('total', 'class_id');
@@ -80,11 +105,13 @@ class AssessmentController extends Controller
                 'id' => $class->id,
                 'name' => $class->name,
                 'students' => (int) $counts->get($class->id, 0),
+                'unassessed' => (int) $unassessedCounts->get($class->id, 0),
             ]);
 
         return Inertia::render('assessments/classes', [
             'departemen' => ['id' => $departemen->id, 'name' => $departemen->name],
             'classes' => $classes,
+            'aspectTotal' => $aspectTotal,
         ]);
     }
 
@@ -96,14 +123,27 @@ class AssessmentController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $aspectTotal = AspekProduktif::query()->count();
+        $unassessedScope = $this->unassessedScope($aspectTotal);
+        $assessedScope = $this->assessedScope($aspectTotal);
+
         $search = trim((string) $request->query('search', ''));
+        $status = trim((string) $request->query('status', ''));
 
         $scoped = $this->scopedStudents($user)->where('class_id', $class->id);
 
+        $totalCount = (clone $scoped)->count();
+        $sudahCount = (clone $scoped)->where($assessedScope)->count();
+        $belumCount = (clone $scoped)->where($unassessedScope)->count();
+
         $students = $scoped
             ->with(['industries:id,name'])
-            ->withCount('evaluations')
+            ->withCount([
+                'evaluations' => fn (Builder $q) => $q->whereNotNull('score'),
+            ])
             ->withAvg('evaluations as avg_score', 'score')
+            ->when($status === 'sudah', $assessedScope)
+            ->when($status === 'belum', $unassessedScope)
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $q) => $q->where('name', 'like', "%{$search}%")
                     ->orWhere('nis', 'like', "%{$search}%"),
@@ -111,7 +151,7 @@ class AssessmentController extends Controller
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString()
-            ->through(function (Student $student): array {
+            ->through(function (Student $student) use ($aspectTotal): array {
                 $rawAvg = $student->getAttribute('avg_score');
                 $avg = $rawAvg === null ? null : (int) round((float) $rawAvg);
 
@@ -123,6 +163,7 @@ class AssessmentController extends Controller
                     'scored' => $student->evaluations_count,
                     'avg' => $avg,
                     'grade' => Evaluation::gradeFor($avg),
+                    'is_complete' => $aspectTotal > 0 && $student->evaluations_count >= $aspectTotal,
                 ];
             });
 
@@ -134,9 +175,90 @@ class AssessmentController extends Controller
                 : null,
             'class' => ['id' => $class->id, 'name' => $class->name],
             'students' => $students,
-            'filters' => ['search' => $search],
-            'aspectTotal' => AspekProduktif::query()->count(),
+            'filters' => ['search' => $search, 'status' => $status],
+            'statusCounts' => [
+                'all' => $totalCount,
+                'sudah' => $sudahCount,
+                'belum' => $belumCount,
+            ],
+            'aspectTotal' => $aspectTotal,
         ]);
+    }
+
+    /**
+     * Unduh berkas rekap nilai PKL seluruh siswa dalam satu kelas (.xlsx).
+     */
+    public function exportClass(Request $request, Classes $class): BinaryFileResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $query = $this->scopedStudents($user)->where('class_id', $class->id);
+        if (! $user->hasAnyRole(['admin', 'wakasek'])) {
+            abort_unless($query->exists(), 403);
+        }
+
+        $safeName = Str::slug($class->name) ?: "kelas-{$class->id}";
+
+        return Excel::download(new AssessmentExport($query), "rekap-nilai-{$safeName}.xlsx");
+    }
+
+    /**
+     * Unduh berkas rekap nilai PKL seluruh siswa dalam satu jurusan (.xlsx).
+     */
+    public function exportDepartemen(Request $request, Departemen $departemen): BinaryFileResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $query = $this->scopedStudents($user)->where('departemen_id', $departemen->id);
+        if (! $user->hasAnyRole(['admin', 'wakasek'])) {
+            abort_unless($query->exists(), 403);
+        }
+
+        $safeName = Str::slug($departemen->name) ?: "jurusan-{$departemen->id}";
+
+        return Excel::download(new AssessmentExport($query), "rekap-nilai-{$safeName}.xlsx");
+    }
+
+    /**
+     * Kondisi kueri siswa yang penilaiannya belum lengkap (< master aspek).
+     *
+     * @return Closure(Builder<Student>): void
+     */
+    private function unassessedScope(int $aspectTotal): Closure
+    {
+        return function (Builder $query) use ($aspectTotal): void {
+            if ($aspectTotal <= 0) {
+                $query->whereRaw('0 = 1');
+
+                return;
+            }
+
+            $query->whereRaw(
+                '(select count(*) from evaluations where evaluations.student_id = students.id and evaluations.score is not null) < ?',
+                [$aspectTotal]
+            );
+        };
+    }
+
+    /**
+     * Kondisi kueri siswa yang penilaiannya sudah lengkap (>= master aspek).
+     *
+     * @return Closure(Builder<Student>): void
+     */
+    private function assessedScope(int $aspectTotal): Closure
+    {
+        return function (Builder $query) use ($aspectTotal): void {
+            if ($aspectTotal <= 0) {
+                return;
+            }
+
+            $query->whereRaw(
+                '(select count(*) from evaluations where evaluations.student_id = students.id and evaluations.score is not null) >= ?',
+                [$aspectTotal]
+            );
+        };
     }
 
     /**

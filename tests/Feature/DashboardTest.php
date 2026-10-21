@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Departemen;
 use App\Models\Industry;
 use App\Models\Parents;
+use App\Models\Pembimbing;
 use App\Models\PKLPeriod;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -242,6 +243,52 @@ class DashboardTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('dashboard-parent')
                 ->has('children', 2)
+            );
+    }
+
+    public function test_guru_dashboard_shows_all_students_from_handled_industries(): void
+    {
+        $guruUser = $this->user('guru');
+        $teacher = Teacher::factory()->create(['user_id' => $guruUser->id]);
+        $industry1 = Industry::factory()->create(['teacher_id' => $teacher->id]);
+        $industry2 = Industry::factory()->create(['teacher_id' => $teacher->id]);
+        $otherIndustry = Industry::factory()->create();
+
+        // 4 murid di industri 1, 3 murid di industri 2 = total 7 murid bimbingan
+        Student::factory()->count(4)->create(['industri_id' => $industry1->id]);
+        Student::factory()->count(3)->create(['industri_id' => $industry2->id]);
+        // 2 murid di industri lain (bukan bimbingan guru ini)
+        Student::factory()->count(2)->create(['industri_id' => $otherIndustry->id]);
+
+        $this->actingAs($guruUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard-staff')
+                ->where('stats.students', 7)
+                ->has('recentStudents', 7)
+            );
+    }
+
+    public function test_pembimbing_dashboard_shows_all_students_from_its_industry(): void
+    {
+        $pembimbingUser = $this->user('pembimbing');
+        $pembimbing = Pembimbing::factory()->create(['user_id' => $pembimbingUser->id]);
+        $industry = Industry::factory()->create(['pembimbing_id' => $pembimbing->id]);
+        $otherIndustry = Industry::factory()->create();
+
+        // 6 murid di industri ini (melebihi batas lama 5)
+        Student::factory()->count(6)->create(['industri_id' => $industry->id]);
+        // 3 murid di industri lain
+        Student::factory()->count(3)->create(['industri_id' => $otherIndustry->id]);
+
+        $this->actingAs($pembimbingUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard-staff')
+                ->where('stats.students', 6)
+                ->has('recentStudents', 6)
             );
     }
 }

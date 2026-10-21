@@ -263,9 +263,10 @@ class DashboardController extends Controller
             'attendanceRate' => $participation['attendance'],
             'journalRate' => $participation['journal'],
             'recentStudents' => $this->presentStudents(
-                (clone $scoped)->with(['classes:id,name', 'industries:id,name,jam_masuk'])->latest()->take(5),
+                (clone $scoped)->with(['classes:id,name', 'industries:id,name,jam_masuk'])->orderBy('name'),
                 daily: true,
             ),
+            'scopeLabel' => $this->scopeLabel($user),
             'today' => Carbon::now()->translatedFormat('l, d F Y'),
         ]);
     }
@@ -508,13 +509,16 @@ class DashboardController extends Controller
             : collect();
 
         return $students->map(function (Student $student) use ($daily, $attendances, $journals): array {
+            /** @var Attendance|null $attendance */
             $attendance = $attendances->get($student->user_id);
             $lateMinutes = $attendance?->lateMinutes($student->industries?->jam_masuk);
-            $status = $attendance?->status === 'alpha'
-                ? 'Alpa'
-                : ($attendance?->arrivalTime === null || $attendance?->departureTime === null
-                    ? 'Belum lengkap'
-                    : ($lateMinutes > 0 ? 'Terlambat' : 'Hadir'));
+            $status = match (true) {
+                $attendance === null => 'Belum lengkap',
+                $attendance->status === 'alpha' => 'Alpa',
+                $attendance->arrivalTime === null || $attendance->departureTime === null => 'Belum lengkap',
+                $lateMinutes > 0 => 'Terlambat',
+                default => 'Hadir',
+            };
 
             return [
                 'id' => $student->id,
