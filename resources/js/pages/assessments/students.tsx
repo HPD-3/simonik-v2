@@ -273,9 +273,15 @@ export default function AssessmentsStudents({
                                             <Link
                                                 href={show.url(student.id)}
                                                 prefetch
-                                                className="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-canvas"
+                                                className={
+                                                    student.is_complete
+                                                        ? 'inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-canvas'
+                                                        : 'inline-flex items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary-hover'
+                                                }
                                             >
-                                                Lihat Nilai
+                                                {student.is_complete
+                                                    ? 'Lihat / Edit Nilai'
+                                                    : 'Nilai'}
                                             </Link>
                                         </td>
                                     </tr>

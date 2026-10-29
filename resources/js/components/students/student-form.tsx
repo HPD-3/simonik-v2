@@ -12,7 +12,11 @@ import {
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { index } from '@/actions/App/Http/Controllers/StudentController';
-import { EmailInput, usernameOf } from '@/components/ui/email-input';
+import {
+    EmailInput,
+    formatEmailSlug,
+    usernameOf,
+} from '@/components/ui/email-input';
 import { Select } from '@/components/ui/select';
 import type { SelectOption } from '@/components/ui/select';
 
@@ -149,7 +153,28 @@ export function StudentForm({
         student?.parent_id ? String(student.parent_id) : '',
     );
 
+    const [name, setName] = useState(student?.name ?? '');
     const [email, setEmail] = useState(usernameOf(student?.email));
+    const [isEmailCustomized, setIsEmailCustomized] = useState(
+        Boolean(student?.email),
+    );
+
+    const handleNameChange = (newName: string) => {
+        setName(newName);
+
+        if (!isEmailCustomized) {
+            setEmail(formatEmailSlug(newName));
+        }
+    };
+
+    const handleEmailChange = (newEmail: string) => {
+        setEmail(newEmail);
+
+        setIsEmailCustomized(
+            newEmail.length > 0 && newEmail !== formatEmailSlug(name),
+        );
+    };
+
     const [password, setPassword] = useState('');
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -221,7 +246,10 @@ export function StudentForm({
                             <input
                                 id="name"
                                 name="name"
-                                defaultValue={student?.name}
+                                value={name}
+                                onChange={(e) =>
+                                    handleNameChange(e.target.value)
+                                }
                                 placeholder="cth. Budi Santoso"
                                 className={inputClass}
                                 required
@@ -235,7 +263,7 @@ export function StudentForm({
                         >
                             <EmailInput
                                 value={email}
-                                onChange={setEmail}
+                                onChange={handleEmailChange}
                                 required
                             />
                         </Field>

@@ -18,7 +18,11 @@ import {
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
-import { EMAIL_DOMAIN, usernameOf } from '@/components/ui/email-input';
+import {
+    EMAIL_DOMAIN,
+    formatEmailSlug,
+    usernameOf,
+} from '@/components/ui/email-input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -88,14 +92,6 @@ function Field({
 
 const inputClass =
     'w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none';
-
-function formatEmailSlug(text: string): string {
-    return text
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '.')
-        .replace(/\.+/g, '.')
-        .replace(/^\.+|\.+$/g, '');
-}
 
 export default function Register({ classes, students }: RegisterProps) {
     const [showPassword, setShowPassword] = useState(false);
