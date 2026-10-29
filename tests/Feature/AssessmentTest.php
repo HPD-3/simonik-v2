@@ -148,6 +148,9 @@ class AssessmentTest extends TestCase
                     $s['teknis']->id => 72,
                     $s['nonTeknis']->id => 88,
                 ],
+                'labels' => [
+                    $s['teknis']->id => 'Pengembangan Backend API',
+                ],
             ])
             ->assertSessionHas('success');
 
@@ -155,6 +158,7 @@ class AssessmentTest extends TestCase
             'student_id' => $s['student']->id,
             'aspek_produktif_id' => $s['teknis']->id,
             'score' => 72,
+            'technical_label' => 'Pengembangan Backend API',
         ]);
 
         $this->assertDatabaseHas('evaluations', [

@@ -1,5 +1,12 @@
 import { Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, CircleHelp, LoaderCircle, Save } from 'lucide-react';
+import {
+    ArrowLeft,
+    CircleHelp,
+    LoaderCircle,
+    Minus,
+    Plus,
+    Save,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import {
@@ -191,6 +198,19 @@ function ScoreTable({
     onLabelChange: (id: number, value: string) => void;
     labelEditable: boolean;
 }) {
+    function handleStep(rowId: number, currentRaw: string, delta: number) {
+        const currentNum = currentRaw === '' ? null : Number(currentRaw);
+        let next: number;
+
+        if (currentNum === null || Number.isNaN(currentNum)) {
+            next = delta > 0 ? 75 : 70;
+        } else {
+            next = Math.min(100, Math.max(0, currentNum + delta));
+        }
+
+        onChange(rowId, String(next));
+    }
+
     return (
         <section className="rounded-3xl bg-surface p-5 sm:p-6">
             <div className="flex flex-col gap-0.5">
@@ -211,7 +231,7 @@ function ScoreTable({
                                 <th className="pb-3 font-semibold">
                                     Kemampuan
                                 </th>
-                                <th className="w-28 pb-3 font-semibold">
+                                <th className="w-40 pb-3 font-semibold">
                                     Nilai
                                 </th>
                                 <th className="w-20 pb-3 font-semibold">
@@ -225,6 +245,10 @@ function ScoreTable({
                         <tbody className="divide-y divide-line">
                             {rows.map((row) => {
                                 const raw = scores[row.id] ?? '';
+                                const currentNum =
+                                    raw === '' || Number.isNaN(Number(raw))
+                                        ? null
+                                        : Number(raw);
                                 const liveScore =
                                     editable && raw !== ''
                                         ? Number(raw)
@@ -239,10 +263,10 @@ function ScoreTable({
 
                                 return (
                                     <tr key={row.id}>
-                                        <td className="py-3 align-top text-ink/80">
+                                        <td className="py-4 align-middle text-ink/80">
                                             {row.no}
                                         </td>
-                                        <td className="py-3 align-top font-medium text-ink">
+                                        <td className="py-4 align-middle font-medium text-ink">
                                             {labelEditable ? (
                                                 <input
                                                     value={labels[row.id] ?? ''}
@@ -252,43 +276,91 @@ function ScoreTable({
                                                             event.target.value,
                                                         )
                                                     }
-                                                    className="w-full min-w-64 rounded-lg border border-line bg-canvas/40 px-3 py-1.5 text-sm text-ink focus:border-primary focus:outline-none"
+                                                    placeholder="Tulis kemampuan teknis (cth. Pemrograman Web, Desain UI, dll)"
+                                                    className="w-full min-w-72 rounded-xl border border-line bg-canvas/40 px-3.5 py-2 text-sm text-ink transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                                 />
                                             ) : (
                                                 (row.label ?? row.kemampuan)
                                             )}
                                         </td>
-                                        <td className="py-3 align-top">
+                                        <td className="py-4 align-middle">
                                             {editable ? (
-                                                <>
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        max={100}
-                                                        value={raw}
-                                                        onChange={(event) =>
-                                                            onChange(
-                                                                row.id,
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        placeholder="0-100"
-                                                        className="w-24 rounded-lg border border-line bg-canvas/40 px-3 py-1.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                                                    />
+                                                <div>
+                                                    <div className="flex w-36 items-center overflow-hidden rounded-xl border border-line bg-canvas/40 shadow-2xs transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                currentNum !==
+                                                                    null &&
+                                                                currentNum <= 0
+                                                            }
+                                                            onClick={(e) =>
+                                                                handleStep(
+                                                                    row.id,
+                                                                    raw,
+                                                                    e.shiftKey
+                                                                        ? -5
+                                                                        : -1,
+                                                                )
+                                                            }
+                                                            className="flex size-9 shrink-0 items-center justify-center text-muted transition-colors hover:bg-canvas hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                                                            title="Kurangi nilai (-1, Shift: -5)"
+                                                            aria-label="Kurangi nilai"
+                                                        >
+                                                            <Minus className="size-3.5" />
+                                                        </button>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            max={100}
+                                                            value={raw}
+                                                            onChange={(event) =>
+                                                                onChange(
+                                                                    row.id,
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="0-100"
+                                                            className="w-full min-w-0 [appearance:textfield] bg-transparent px-1 py-1.5 text-center text-sm font-semibold text-ink placeholder:text-muted/60 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                currentNum !==
+                                                                    null &&
+                                                                currentNum >=
+                                                                    100
+                                                            }
+                                                            onClick={(e) =>
+                                                                handleStep(
+                                                                    row.id,
+                                                                    raw,
+                                                                    e.shiftKey
+                                                                        ? 5
+                                                                        : 1,
+                                                                )
+                                                            }
+                                                            className="flex size-9 shrink-0 items-center justify-center text-muted transition-colors hover:bg-canvas hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                                                            title="Tambah nilai (+1, Shift: +5)"
+                                                            aria-label="Tambah nilai"
+                                                        >
+                                                            <Plus className="size-3.5" />
+                                                        </button>
+                                                    </div>
                                                     {error && (
                                                         <p className="mt-1 text-xs font-medium text-red-500">
                                                             {error}
                                                         </p>
                                                     )}
-                                                </>
+                                                </div>
                                             ) : (
                                                 <span className="text-ink/80">
                                                     {row.score ?? '—'}
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-3 align-top">
+                                        <td className="py-4 align-middle">
                                             {grade ? (
                                                 <span
                                                     className={cn(
@@ -304,7 +376,7 @@ function ScoreTable({
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-3 align-top text-ink/80">
+                                        <td className="py-4 align-middle text-ink/80">
                                             {qualification ?? '—'}
                                         </td>
                                     </tr>
