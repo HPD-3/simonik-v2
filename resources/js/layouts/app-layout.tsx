@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppTopbar } from '@/components/app-topbar';
+import { DynamicPopup } from '@/components/dynamic-popup';
 import { PwaPrompt } from '@/components/pwa/pwa-prompt';
 import { cn } from '@/lib/utils';
 import type { SharedData } from '@/types';
@@ -93,7 +94,10 @@ export function AppLayout({
                 </div>
             </div>
 
-            <PwaPrompt />
+            <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-sm flex-col gap-3 sm:right-6 sm:bottom-6 sm:left-auto">
+                <DynamicPopup />
+                <PwaPrompt />
+            </div>
         </div>
     );
 }

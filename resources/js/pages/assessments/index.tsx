@@ -1,5 +1,11 @@
 import { Link } from '@inertiajs/react';
-import { ChevronRight, CircleHelp, ClipboardList, Network } from 'lucide-react';
+import {
+    AlertCircle,
+    ChevronRight,
+    CircleHelp,
+    ClipboardList,
+    Network,
+} from 'lucide-react';
 import { useState } from 'react';
 import { classes } from '@/actions/App/Http/Controllers/AssessmentController';
 import { GradeInfoModal } from '@/components/grade-info-modal';
@@ -10,6 +16,7 @@ type DepartemenCard = {
     id: number;
     name: string;
     students: number;
+    unassessed: number;
 };
 
 type Props = {
@@ -81,9 +88,21 @@ export default function AssessmentsIndex({
                                         <p className="font-semibold text-ink">
                                             {departemen.name}
                                         </p>
-                                        <p className="text-xs text-muted">
-                                            {departemen.students} murid
-                                        </p>
+                                        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                            <p className="text-xs text-muted">
+                                                {departemen.students} murid
+                                            </p>
+                                            {departemen.unassessed > 0 && (
+                                                <span
+                                                    title={`${departemen.unassessed} murid belum lengkap dinilai`}
+                                                    className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400"
+                                                >
+                                                    <AlertCircle className="size-3" />
+                                                    {departemen.unassessed}{' '}
+                                                    belum dinilai
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <ChevronRight className="size-5 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />

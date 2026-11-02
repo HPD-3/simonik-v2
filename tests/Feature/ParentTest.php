@@ -262,4 +262,18 @@ class ParentTest extends TestCase
         $this->assertSame('Ayah', $export->map($parentL->fresh())[2]);
         $this->assertSame('Ibu', $export->map($parentP->fresh())[2]);
     }
+
+    public function test_admin_can_bulk_delete_parents(): void
+    {
+        $parents = Parents::factory()->count(3)->create();
+        $ids = $parents->pluck('id')->all();
+
+        $this->actingAs($this->admin())
+            ->delete('/parents/bulk', ['ids' => $ids])
+            ->assertRedirect();
+
+        foreach ($parents as $parent) {
+            $this->assertDatabaseMissing('parents', ['id' => $parent->id]);
+        }
+    }
 }

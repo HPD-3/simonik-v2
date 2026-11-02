@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             BadgeSeeder::class,
             TagSeeder::class,
             DemoDataSeeder::class,
+            StarterSeeder::class,
         ]);
     }
 }

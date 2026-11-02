@@ -8,6 +8,7 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceMonitorController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateTemplateController;
 use App\Http\Controllers\ClassController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\IndustryController;
+use App\Http\Controllers\IndustryDudiReportController;
 use App\Http\Controllers\JournalMonitorController;
 use App\Http\Controllers\KaprogController;
 use App\Http\Controllers\LeaveRequestController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\StreakController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TeacherController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\WakasekController;
 use App\Http\Controllers\WebsiteSettingController;
@@ -75,6 +78,9 @@ Route::get('sw.js', function () {
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:5,1');
 });
 
 Route::middleware('auth')->group(function () {
@@ -85,12 +91,22 @@ Route::middleware('auth')->group(function () {
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('profile/data-diri', [ProfileController::class, 'updateStudentProfile'])->name('profile.student.update');
+    Route::patch('profile/industri', [ProfileController::class, 'updateIndustryProfile'])->name('profile.industry.update');
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 
-    // Pengaturan favicon situs — hanya Super Admin.
+    // Pengaturan favicon situs & User Management — hanya Super Admin.
     Route::middleware('role:admin')->group(function () {
+        Route::get('admin/profil-industri', [IndustryDudiReportController::class, 'index'])->name('admin.industry-dudi.index');
+        Route::get('admin/profil-industri/export', [IndustryDudiReportController::class, 'export'])->name('admin.industry-dudi.export');
+
+        Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::post('users/bulk-reset-password', [UserController::class, 'bulkResetPassword'])->name('users.bulk-reset-password');
+        Route::delete('users/bulk', [UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::get('pengaturan-website', [WebsiteSettingController::class, 'edit'])->name('website-settings.edit');
         Route::put('pengaturan-website', [WebsiteSettingController::class, 'update'])->name('website-settings.update');
+        Route::put('pengaturan-website/popup', [WebsiteSettingController::class, 'updatePopup'])->name('website-settings.popup.update');
 
         // Tombol CTA WhatsApp di landing page — nomor tujuan + template pesan.
         Route::get('pengaturan-cta-whatsapp', [WhatsappCtaSettingController::class, 'edit'])->name('whatsapp-cta.edit');
@@ -99,6 +115,8 @@ Route::middleware('auth')->group(function () {
 
     // Panduan PKL — semua role bisa lihat & unduh; kelola hanya admin/kaprog.
     Route::get('panduan', [GuideController::class, 'index'])->name('guides.index');
+    Route::get('panduan/{guide}/dokumen', [GuideController::class, 'dokumen'])->name('guides.dokumen');
+    Route::get('panduan/{guide}/gambar', [GuideController::class, 'gambar'])->name('guides.gambar');
     Route::middleware('role:admin|kaprog')->group(function () {
         Route::post('panduan', [GuideController::class, 'store'])->name('guides.store');
         Route::put('panduan/{guide}', [GuideController::class, 'update'])->name('guides.update');
@@ -125,6 +143,9 @@ Route::middleware('auth')->group(function () {
         Route::post('students/import/preview', [StudentController::class, 'importPreview'])->name('students.import-preview');
         Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
         Route::delete('students/bulk', [StudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
+        Route::delete('teachers/bulk', [TeacherController::class, 'bulkDestroy'])->name('teachers.bulk-destroy');
+        Route::delete('pembimbings/bulk', [PembimbingController::class, 'bulkDestroy'])->name('pembimbings.bulk-destroy');
+        Route::delete('parents/bulk', [ParentController::class, 'bulkDestroy'])->name('parents.bulk-destroy');
 
         // Impor/ekspor master data lain — literal path didahulukan sebelum resource
         // agar tidak tertangkap route show `{id}`.
@@ -143,6 +164,9 @@ Route::middleware('auth')->group(function () {
 
         // Wakasek & Kaprog — hanya Super Admin.
         Route::middleware('role:admin')->group(function (): void {
+            Route::delete('wakaseks/bulk', [WakasekController::class, 'bulkDestroy'])->name('wakaseks.bulk-destroy');
+            Route::delete('kaprogs/bulk', [KaprogController::class, 'bulkDestroy'])->name('kaprogs.bulk-destroy');
+
             foreach ([
                 'wakaseks' => WakasekController::class,
                 'kaprogs' => KaprogController::class,
@@ -211,22 +235,24 @@ Route::middleware('auth')->group(function () {
     // Rapor Digital — kompilasi nilai + rekap + QR keaslian, siap cetak.
     // Penelusuran berjenjang: Jurusan -> Kelas -> Murid -> rapor.
     // Orang tua ikut serta: hanya melihat rapor anaknya (dibatasi scopedStudents).
-    Route::middleware('role:admin|kaprog|wakasek|siswa|pembimbing|orangtua')->group(function () {
+    Route::middleware('role:admin|kaprog|wakasek|guru|siswa|pembimbing|orangtua')->group(function () {
         Route::get('rapor', [RaporController::class, 'index'])->name('rapor.index');
         Route::get('rapor/jurusan/{departemen}', [RaporController::class, 'classes'])->name('rapor.classes');
         Route::get('rapor/kelas/{class}', [RaporController::class, 'students'])->name('rapor.students');
         Route::get('rapor/{student}', [RaporController::class, 'show'])->name('rapor.show');
     });
 
-    // Rekap Penilaian — lihat (semua cakupan) + input nilai (guru/pembimbing).
+    // Rekap Penilaian — lihat (semua cakupan) + input nilai (pembimbing industri).
     Route::middleware('role:admin|kaprog|wakasek|guru|pembimbing|siswa|orangtua')->group(function () {
         // Penelusuran berjenjang: Jurusan -> Kelas -> Murid -> rekap nilai.
         Route::get('penilaian', [AssessmentController::class, 'index'])->name('assessments.index');
         Route::get('penilaian/jurusan/{departemen}', [AssessmentController::class, 'classes'])->name('assessments.classes');
+        Route::get('penilaian/jurusan/{departemen}/export', [AssessmentController::class, 'exportDepartemen'])->name('assessments.export-departemen');
         Route::get('penilaian/kelas/{class}', [AssessmentController::class, 'students'])->name('assessments.students');
+        Route::get('penilaian/kelas/{class}/export', [AssessmentController::class, 'exportClass'])->name('assessments.export-class');
         Route::get('penilaian/{student}', [AssessmentController::class, 'show'])->name('assessments.show');
         Route::put('penilaian/{student}', [AssessmentController::class, 'update'])
-            ->middleware('role:guru|pembimbing')
+            ->middleware('role:pembimbing')
             ->name('assessments.update');
     });
 
@@ -379,3 +405,8 @@ Route::middleware('auth')->group(function () {
         Route::get('statistik', [StatistikController::class, 'index'])->name('statistik.index');
     });
 });
+
+// Fallback untuk berkas storage publik jika web server / proxy tidak mengizinkan akses langsung symlink.
+Route::get('storage/{path}', [GuideController::class, 'serveStorage'])
+    ->where('path', '.*')
+    ->name('storage.fallback');

@@ -1,5 +1,6 @@
 /.phpunit.cache
 /bootstrap/ssr
+/bootstrap/cache/*.php
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
@@ -26,3 +27,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/compose.yaml
+Dockerfile
+.vercel
+.env*

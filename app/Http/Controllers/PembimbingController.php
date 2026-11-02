@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\PembimbingExport;
 use App\Http\Controllers\Concerns\HandlesImportExport;
 use App\Http\Controllers\Concerns\ResolvesRoleAccount;
+use App\Http\Requests\BulkDestroyRequest;
 use App\Http\Requests\StorePembimbingRequest;
 use App\Http\Requests\UpdatePembimbingRequest;
 use App\Imports\PembimbingImport;
@@ -237,6 +238,34 @@ class PembimbingController extends Controller
         $deleted = $this->detachRole($user, 'pembimbing');
 
         return back()->with('success', $this->detachMessage($user, $deleted, 'Pembimbing industri'));
+    }
+
+    /**
+     * Hapus beberapa pembimbing industri sekaligus.
+     */
+    public function bulkDestroy(BulkDestroyRequest $request): RedirectResponse
+    {
+        /** @var array<int, int> $ids */
+        $ids = $request->validated('ids');
+        $pembimbings = Pembimbing::query()->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+
+        DB::transaction(function () use ($pembimbings, &$deleted): void {
+            foreach ($pembimbings as $pembimbing) {
+                $user = $pembimbing->user;
+                $pembimbing->delete();
+
+                if ($user) {
+                    $this->detachRole($user, 'pembimbing');
+                }
+                $deleted++;
+            }
+        });
+
+        return redirect()
+            ->route('pembimbings.index')
+            ->with('success', "{$deleted} pembimbing industri berhasil dihapus.");
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\TeacherExport;
 use App\Http\Controllers\Concerns\HandlesImportExport;
 use App\Http\Controllers\Concerns\ResolvesRoleAccount;
+use App\Http\Requests\BulkDestroyRequest;
 use App\Http\Requests\StoreTeacherRequest;
 use App\Http\Requests\UpdateTeacherRequest;
 use App\Imports\TeacherImport;
@@ -212,5 +213,44 @@ class TeacherController extends Controller
         $deleted = $this->detachRole($user, 'guru');
 
         return back()->with('success', $this->detachMessage($user, $deleted, 'Guru pembimbing'));
+    }
+
+    /**
+     * Hapus beberapa guru sekaligus.
+     */
+    public function bulkDestroy(BulkDestroyRequest $request): RedirectResponse
+    {
+        /** @var array<int, int> $ids */
+        $ids = $request->validated('ids');
+        $teachers = Teacher::query()->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+        $blocked = 0;
+
+        DB::transaction(function () use ($teachers, &$deleted, &$blocked): void {
+            foreach ($teachers as $teacher) {
+                if ($teacher->students()->exists()) {
+                    $blocked++;
+                    continue;
+                }
+
+                $user = $teacher->users;
+                $teacher->delete();
+
+                if ($user) {
+                    $this->detachRole($user, 'guru');
+                }
+                $deleted++;
+            }
+        });
+
+        $message = "{$deleted} guru berhasil dihapus.";
+        if ($blocked > 0) {
+            $message .= " {$blocked} guru dilewati karena masih membimbing siswa.";
+        }
+
+        return redirect()
+            ->route('teachers.index')
+            ->with($deleted > 0 ? 'success' : 'error', $message);
     }
 }

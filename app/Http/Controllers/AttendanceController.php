@@ -165,9 +165,16 @@ class AttendanceController extends Controller
         }
 
         $attendance->load('approval');
+        $student = $request->user()->students;
+        $student?->loadMissing(['classes:id,name', 'industries:id,name,jam_masuk']);
 
         return Inertia::render('attendance/show', [
-            'attendance' => $this->present($attendance, $request->user()->students?->industries?->jam_masuk),
+            'attendance' => $this->present($attendance, $student?->industries?->jam_masuk),
+            'student' => [
+                'name' => $student?->name ?? $request->user()->name,
+                'class' => $student?->classes?->name ?? '—',
+                'industry' => $student?->industries?->name ?? '—',
+            ],
         ]);
     }
 

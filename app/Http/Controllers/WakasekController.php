@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\WakasekExport;
 use App\Http\Controllers\Concerns\HandlesImportExport;
 use App\Http\Controllers\Concerns\ResolvesRoleAccount;
+use App\Http\Requests\BulkDestroyRequest;
 use App\Http\Requests\StoreWakasekRequest;
 use App\Http\Requests\UpdateWakasekRequest;
 use App\Imports\WakasekImport;
@@ -13,6 +14,7 @@ use App\Support\ImportTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -143,5 +145,39 @@ class WakasekController extends Controller
         $deleted = $this->detachRole($wakasek, 'wakasek');
 
         return back()->with('success', $this->detachMessage($wakasek, $deleted, 'Wakasek'));
+    }
+
+    /**
+     * Hapus beberapa akun wakasek sekaligus.
+     */
+    public function bulkDestroy(BulkDestroyRequest $request): RedirectResponse
+    {
+        /** @var array<int, int> $ids */
+        $ids = $request->validated('ids');
+        $wakaseks = User::role('wakasek')->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+        $blocked = 0;
+
+        DB::transaction(function () use ($wakaseks, &$deleted, &$blocked): void {
+            foreach ($wakaseks as $wakasek) {
+                if ($wakasek->id === Auth::id()) {
+                    $blocked++;
+                    continue;
+                }
+
+                $this->detachRole($wakasek, 'wakasek');
+                $deleted++;
+            }
+        });
+
+        $message = "{$deleted} akun wakasek berhasil dihapus.";
+        if ($blocked > 0) {
+            $message .= " {$blocked} akun dilewati karena merupakan akun Anda sendiri.";
+        }
+
+        return redirect()
+            ->route('wakaseks.index')
+            ->with($deleted > 0 ? 'success' : 'error', $message);
     }
 }

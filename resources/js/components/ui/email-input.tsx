@@ -14,6 +14,15 @@ export function usernameOf(email?: string): string {
         : email;
 }
 
+/** Ubah nama menjadi format slug email (hanya huruf, angka, dan titik). */
+export function formatEmailSlug(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '.')
+        .replace(/\.+/g, '.')
+        .replace(/^\.+|\.+$/g, '');
+}
+
 /**
  * Input email dengan domain tetap tercetak di sebelah kanan.
  *
